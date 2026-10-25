@@ -1,18 +1,34 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { calculate } from '../../shared/calculations.js';
-import { createComparison, createScenario, deleteComparison, deleteScenario, findScenario, listComparisons, listScenarios, renameComparison, renameScenario } from './dataStore.js';
+import { connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findScenario, hasMongoConnection, listComparisons, listScenarios, renameComparison, renameScenario } from './dataStore.js';
 import { registerAuthRoutes, requireAuth } from './auth.js';
 
 const supportedTypes = ['investment', 'loan', 'credit-card', 'budget'];
+const hostedFunction = process.env.FINCOACH_HOSTED === 'true' || process.env.VERCEL === '1' || process.env.NETLIFY === 'true';
+const builtClientIndex = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public/index.html');
 const router = express.Router();
 registerAuthRoutes(router);
 const snapshot = (record) => ({ id: String(record._id), type: record.type, title: record.title, inputs: record.inputs, assumptions: record.assumptions, results: record.results, schemaVersion: record.schemaVersion, createdAt: record.createdAt, updatedAt: record.updatedAt });
 const fieldMessage = (error) => ({ error: error.message, field: error.field });
 
-router.get('/health', (_req, res) => res.json({ status: 'ok' }));
+router.get('/health', async (_req, res) => {
+  if (!hostedFunction) return res.json({ status: 'ok', storage: hasMongoConnection() ? 'mongodb' : 'local' });
+  if (!process.env.MONGODB_URI || !process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    return res.status(503).json({ status: 'misconfigured', storage: 'unavailable' });
+  }
+  try {
+    await connectMongo();
+    return res.json({ status: 'ok', storage: 'mongodb' });
+  } catch (error) {
+    console.error('Hosted account database health check failed:', error.message);
+    return res.status(503).json({ status: 'unavailable', storage: 'mongodb' });
+  }
+});
 router.post('/simulations/:type', (req, res) => {
   if (!supportedTypes.includes(req.params.type)) return res.status(404).json({ error: 'Unknown simulator.' });
   try { const result = calculate(req.params.type, req.body); return res.json({ type: req.params.type, inputs: req.body, results: result }); }
@@ -99,7 +115,28 @@ export function createApp() {
   app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173', credentials: true }));
   app.use(express.json({ limit: '32kb' }));
   app.use(cookieParser());
+  app.use('/api', async (req, res, next) => {
+    if (!hostedFunction) return next();
+    const publicRequest = (req.method === 'GET' && req.path === '/health')
+      || (req.method === 'POST' && /^\/simulations\/(investment|loan|credit-card|budget)$/.test(req.path));
+    if (publicRequest) return next();
+    if (!process.env.MONGODB_URI || !process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      return res.status(503).json({ error: 'Account service is not configured yet. Please try again later.' });
+    }
+    try { await connectMongo(); return next(); }
+    catch (error) {
+      console.error('Hosted account database connection failed:', error.message);
+      return res.status(503).json({ error: 'Account service is temporarily unavailable. Please try again shortly.' });
+    }
+  });
   app.use('/api', router);
+  app.use((req, res) => {
+    if (req.path === '/api' || req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found.' });
+    if (process.env.VERCEL === '1' && req.method === 'GET') return res.sendFile(builtClientIndex, (error) => {
+      if (error && !res.headersSent) res.status(404).send('FinCoach was not built. Redeploy the project and try again.');
+    });
+    return res.status(404).send('Not found');
+  });
   app.use((error, _req, res, _next) => {
     if (error instanceof SyntaxError && 'body' in error) return res.status(400).json({ error: 'Request body must be valid JSON.' });
     console.error('Request failed:', error.message);

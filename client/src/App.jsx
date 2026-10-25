@@ -91,7 +91,38 @@ function App() {
   const duplicateRecord = async (record) => { let copy = { ...record, id: crypto.randomUUID(), title: `${record.title} copy`, createdAt: new Date().toISOString() }; if (user) { try { const response = await fetch('/api/simulations', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: record.type, title: copy.title, inputs: record.inputs }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Could not duplicate this scenario.'); copy = normalizeRemote(body.simulation); } catch (caught) { setToast(caught.message); return; } } setHistory((current) => [copy, ...current]); setToast('Scenario duplicated'); };
   const renameRecord = async (id, title) => { if (!title.trim()) return; if (user && /^[a-f\d]{24}$/i.test(id)) { try { const response = await fetch(`/api/simulations/${id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title.trim() }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Could not rename this scenario.'); } catch (caught) { setToast(caught.message); return; } } setHistory((current) => current.map((item) => item.id === id ? { ...item, title: title.trim() } : item)); setToast('Scenario renamed'); };
   const chooseSection = (next) => { setSection(next); setMobileOpen(false); setError(''); };
-  const submitAuth = async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); setAuthBusy(true); setAuthError(''); try { const response = await fetch(`/api/auth/${authMode === 'register' ? 'register' : 'login'}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(authMode === 'register' ? { name: form.get('name') } : {}), email: form.get('email'), password: form.get('password') }) }); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.error || 'The account service is unavailable. Start the local API and try again.'); if (!body.user) throw new Error('The account service returned an incomplete response. Try again.'); setUser(body.user); const [list, compareList] = await Promise.all([fetch('/api/simulations', { credentials: 'include' }), fetch('/api/comparisons', { credentials: 'include' })]); if (list.ok) { const saved = await list.json(); setHistory(saved.simulations.map(normalizeRemote)); } if (compareList.ok) { const saved = await compareList.json(); setComparisons(saved.comparisons.map(normalizeComparison)); } setAccountOpen(false); setToast(authMode === 'register' ? 'Your learning account is ready' : `Welcome back, ${body.user.name}`); } catch (caught) { setAuthError(caught.message); } finally { setAuthBusy(false); } };
+  const submitAuth = async (event) => {
+    event.preventDefault(); const form = new FormData(event.currentTarget); setAuthBusy(true); setAuthError('');
+    try {
+      const response = await fetch(`/api/auth/${authMode === 'register' ? 'register' : 'login'}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(authMode === 'register' ? { name: form.get('name') } : {}), email: form.get('email'), password: form.get('password') }) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 503) {
+          const healthResponse = await fetch('/api/health', { credentials: 'include' }).catch(() => null);
+          const health = healthResponse?.ok || healthResponse?.status === 503
+            ? await healthResponse.json().catch(() => null)
+            : null;
+          if (health?.status === 'misconfigured') {
+            throw new Error('Account setup is incomplete. In Vercel, add MONGODB_URI and a JWT_SECRET of at least 32 characters for this deployment, then redeploy.');
+          }
+          if (health?.status === 'unavailable' && health?.storage === 'mongodb') {
+            throw new Error('FinCoach cannot connect to its database. Check the MongoDB Atlas connection string, database user credentials, and Atlas network access in Vercel.');
+          }
+        }
+        throw new Error(body.error || 'The account service is temporarily unavailable. Please try again shortly.');
+      }
+      if (!body.user) throw new Error('The account service returned an incomplete response. Try again.');
+      setUser(body.user);
+      const [list, compareList] = await Promise.all([fetch('/api/simulations', { credentials: 'include' }), fetch('/api/comparisons', { credentials: 'include' })]);
+      if (list.ok) { const saved = await list.json(); setHistory(saved.simulations.map(normalizeRemote)); }
+      if (compareList.ok) { const saved = await compareList.json(); setComparisons(saved.comparisons.map(normalizeComparison)); }
+      setAccountOpen(false); setToast(authMode === 'register' ? 'Your learning account is ready' : `Welcome back, ${body.user.name}`);
+    } catch (caught) {
+      if (caught instanceof TypeError) {
+        setAuthError('The account service could not be reached. Please try again shortly.');
+      } else setAuthError(caught.message);
+    } finally { setAuthBusy(false); }
+  };
   const saveProfile = async (profile) => { try { const response = await fetch('/api/auth/profile', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Could not update your profile.'); setUser(body.user); setToast('Profile updated'); return true; } catch (caught) { setToast(caught.message); return false; } };
   const changePassword = async (passwords) => { try { const response = await fetch('/api/auth/password', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(passwords) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Could not update your password.'); setToast('Password updated'); return true; } catch (caught) { setToast(caught.message); return false; } };
   const deleteAccount = async (currentPassword) => { try { const response = await fetch('/api/auth/account', { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword }) }); if (!response.ok) { const body = await response.json(); throw new Error(body.error || 'Could not delete this account.'); } setUser(null); setHistory(safeRead()); setComparisons(safeReadKey('fincoach-comparisons', [])); setToast('Account and account scenarios deleted'); return true; } catch (caught) { setToast(caught.message); return false; } };

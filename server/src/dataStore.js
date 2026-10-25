@@ -5,11 +5,24 @@ import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
 import { Comparison, Simulation, User } from './models.js';
 
+let mongoConnectPromise;
+
 const localFile = process.env.LOCAL_DATA_FILE || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../data/fincoach-local.json');
 const localSecretFile = path.join(path.dirname(localFile), '.jwt-secret');
 let writes = Promise.resolve();
 
 export const hasMongoConnection = () => mongoose.connection.readyState === 1;
+
+export async function connectMongo() {
+  if (hasMongoConnection()) return mongoose.connection;
+  if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required for hosted accounts.');
+  if (!mongoConnectPromise) {
+    mongoConnectPromise = mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 })
+      .then(() => mongoose.connection)
+      .catch((error) => { mongoConnectPromise = undefined; throw error; });
+  }
+  return mongoConnectPromise;
+}
 
 async function readLocal() {
   try {

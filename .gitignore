@@ -5,4 +5,5 @@ client/dist/
 !.env.example
 coverage/
 /server/data/
+/public/
 npm-debug.log*

@@ -11,7 +11,9 @@ npm install
 npm run dev
 ```
 
-Open the Vite address printed by the client process (normally `http://localhost:5173`). The Express API runs at `http://localhost:4000`; Vite forwards `/api` requests to it. Without MongoDB configured, accounts and saved scenarios use a local JSON store at `server/data/fincoach-local.json`, so you can create an account and use the app locally. This file is ignored by Git. For deployment or shared multi-device accounts, copy `server/.env.example` to `server/.env`, set a MongoDB Atlas connection string and a random `JWT_SECRET` with at least 32 characters, then restart the API. Keep `.env` files private.
+On Windows, double-click [`Start FinCoach.bat`](./Start%20FinCoach.bat) to start both the website and account API. Alternatively, in the VS Code terminal at the project root, use `npm.cmd install` once, then `npm.cmd run dev` (this avoids PowerShell's `npm.ps1` execution-policy error). Open the exact Vite `Local` address printed in the terminal; if 5173 is occupied Vite may select another port. Keep the terminal or batch window open while using FinCoach. Closing it stops the API, and account registration/sign-in will no longer work until the full app is started again.
+
+The Express API runs at `http://localhost:4000`; Vite forwards `/api` requests to it. When MongoDB is not configured locally, accounts and saved scenarios use a JSON file at `server/data/fincoach-local.json`. This is for local development only; deployed accounts use MongoDB Atlas and never fall back to a temporary serverless file. For local MongoDB, copy `server/.env.example` to `server/.env`, set `MONGODB_URI` and a random `JWT_SECRET` of at least 32 characters, then restart the API. Keep `.env` files private.
 
 ```sh
 npm test
@@ -83,4 +85,22 @@ Capture interface screenshots, sample inputs/results, test evidence, and the arc
 
 ## Deployment
 
-Build the client with `npm run build`. Deploy the `client/dist` static output and the Node server separately, set `CLIENT_ORIGIN`, `MONGODB_URI`, and a strong `JWT_SECRET` in the server environment, and enable HTTPS. Check provider free-tier limits before choosing a host. Keep the local demo as a fallback.
+### Vercel (configured)
+
+The root `index.js` exports the Express app as a Vercel Function. `npm run build` builds the Vite client and copies the static bundle into `public/`, while the Express app serves the SPA fallback and handles `/api/*` requests on the same origin. This keeps the HTTP-only session cookie same-origin and avoids a separately hosted local API. Vercel's current Express flow supports exporting an Express app from the project root and serving static assets from `public/` ([Express deployment guide](https://vercel.com/kb/guide/ship-a-express-app-on-vercel), [Vercel Functions](https://vercel.com/docs/functions)).
+
+1. Push the project to GitHub and import that repository at [Vercel New Project](https://vercel.com/new). Set the project root to the repository root and build command to `npm run build`; leave the output directory on automatic detection.
+2. Create a MongoDB Atlas database and allow the deployed function to connect to it. In Vercel Project Settings → Environment Variables, add `MONGODB_URI` (Atlas connection string) and `JWT_SECRET` (a private random value with at least 32 characters) for Production and Preview. Never use a `VITE_` prefix for secrets.
+3. Deploy, then open `/api/health` on the deployed domain. A healthy account service returns `{"status":"ok","storage":"mongodb"}`. `{"status":"misconfigured"...}` means `MONGODB_URI` or `JWT_SECRET` is missing or invalid; `{"status":"unavailable","storage":"mongodb"}` means the function could not connect to Atlas. For the latter, verify the Atlas database username/password in the URI, the database name, and Atlas Network Access rules. Make sure both variables are enabled for the environment you are testing (Production or Preview), then redeploy after changing them. Do not share the URI or secret publicly. Create an account and save/reopen a scenario to confirm persistence. A production deployment without valid database and secret settings leaves accounts unavailable rather than storing account records in an ephemeral function filesystem.
+
+Vercel publishes the website independently of a local terminal; deployments update when new commits are pushed to the connected Git branch. The production website and its database still depend on the selected hosting/database plans and their availability.
+
+### Netlify
+
+The repository includes `netlify.toml` and a `serverless-http` function adapter. Netlify serves the Vite build from `client/dist` and rewrites same-origin `/api/*` requests to the Express function. This follows Netlify's [Express deployment guide](https://docs.netlify.com/build/frameworks/framework-setup-guides/express/).
+
+1. Import the repository from GitHub into Netlify. Set the base directory to the repository root; the included `netlify.toml` supplies `npm run build`, the publish directory, function directory, and API/SPA rewrites.
+2. Create the MongoDB Atlas database. In Netlify Project configuration → Environment variables, add `MONGODB_URI` and a private random `JWT_SECRET` of at least 32 characters. Ensure both are available to Functions and the Production/Deploy Preview contexts you use. Never put secrets in `netlify.toml` or a `VITE_` variable.
+3. Deploy and open `/api/health` on the Netlify site. Expect `{"status":"ok","storage":"mongodb"}` before registering. `misconfigured` means one of the two variables is absent or invalid; `unavailable` means the function cannot connect to Atlas, so check the connection string, database user credentials, database name, and Atlas network access. Changing environment variables requires a new deploy ([Netlify environment variables for Functions](https://docs.netlify.com/build/functions/environment-variables/)).
+
+Netlify runs Express as an on-demand serverless function, so it does not need a local API process to stay open. MongoDB Atlas remains required for persistent hosted accounts; the local JSON store is only for local development.
