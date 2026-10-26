@@ -103,10 +103,10 @@ function App() {
             ? await healthResponse.json().catch(() => null)
             : null;
           if (health?.status === 'misconfigured') {
-            throw new Error('Account setup is incomplete. In Vercel, add MONGODB_URI and a JWT_SECRET of at least 32 characters for this deployment, then redeploy.');
+            throw new Error('Account setup is incomplete. Add MONGODB_URI and a JWT_SECRET of at least 32 characters in your hosting project settings, then redeploy.');
           }
           if (health?.status === 'unavailable' && health?.storage === 'mongodb') {
-            throw new Error('FinCoach cannot connect to its database. Check the MongoDB Atlas connection string, database user credentials, and Atlas network access in Vercel.');
+            throw new Error('FinCoach cannot connect to its database. Check the MongoDB Atlas connection string, database user credentials, and Atlas network access in your hosting settings.');
           }
         }
         throw new Error(body.error || 'The account service is temporarily unavailable. Please try again shortly.');
