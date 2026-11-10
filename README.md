@@ -22,6 +22,8 @@ npm run build
 
 `npm test` runs the API/calculation suite and the client interaction suite. The API tests cover registration, duplicate accounts, password hashing, login, persistent sessions, profile and password changes, password-confirmed account deletion and owned-data cleanup, simulator validation, owner checks, and hosted configuration errors. The client tests exercise registration, login, password visibility, session restoration, profile updates and account creation date, real progress data in Settings, recovery from malformed browser storage, theme persistence, correct-quiz progress persistence across reloads, every lesson-module link, and a baseline-to-variant Decision Replay through the UI, including saving its version history. They also cover My progress links and the Student workspace return-to-Overview control. The production build compiles the client and prepares the Vercel static assets.
 
+GitHub Actions runs the frozen pnpm workspace install, the full test suite, and the production build on pushes to `main`, pull requests, and manual runs. Its workflow is at `.github/workflows/ci.yml`.
+
 ### Latest verification (11 November 2026)
 
 - `npm test`: passed — 29 server/API and calculation tests plus 14 client interaction tests (43 total), including navigation through all 70 lessons, the Student workspace, and guest progress migration.
