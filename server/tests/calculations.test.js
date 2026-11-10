@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal } from '../../shared/calculations.js';
+import { calculate, calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal } from '../../shared/calculations.js';
 
 test('investment uses the disclosed compound growth formula', () => {
   const result = calculateInvestment({ principal: 20000, years: 5, rate: 8, frequency: 1 });
@@ -17,6 +17,12 @@ test('fractional investment horizons keep the formula and chart on the same time
   assert.ok(Math.abs(result.finalValue - expected) < 1e-8);
   assert.equal(result.chart.at(-1).value, result.finalValue);
   assert.equal(result.chart.at(-1).fdValue, result.fdValue);
+  const partialMonth = calculateInvestment({ principal: 20000, years: 2.45, rate: 8, frequency: 1 });
+  assert.ok(Math.abs(partialMonth.finalValue - (20000 * (1 + 0.08) ** 2.45)) < 1e-8);
+  assert.equal(partialMonth.chart.at(-1).period, 'Year 2.45');
+  const partialContributionMonth = calculateInvestment({ principal: 1000, monthlyContribution: 100, years: 1.05, rate: 0, fdRate: 0 });
+  assert.equal(partialContributionMonth.totalInvested, 2200);
+  assert.equal(partialContributionMonth.finalValue, 2200);
 });
 
 test('investment includes end-of-month contributions, annual increases, and inflation', () => {
@@ -83,6 +89,19 @@ test('savings goal estimates required monthly contributions and progress', () =>
   assert.throws(() => calculateSavingsGoal({ target: 1000, currentSavings: 0, monthlyContribution: 100, targetDate: '2000-01-01' }), (error) => error.field === 'targetDate');
 });
 
+test('savings projections count only month-end deposits on or before the target date', () => {
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const tomorrow = new Date(todayUtc + 86_400_000);
+  const targetDate = tomorrow.toISOString().slice(0, 10);
+  const monthEnd = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0);
+  const expectedPeriods = monthEnd > todayUtc && monthEnd <= tomorrow.getTime() ? 1 : 0;
+  const result = calculateSavingsGoal({ target: 10000, currentSavings: 1000, monthlyContribution: 100, annualRate: 0, targetDate });
+  assert.equal(result.contributionPeriodsUntilTarget, expectedPeriods);
+  assert.equal(result.projectedAtTarget, 1000 + expectedPeriods * 100);
+  assert.equal(result.requiredMonthlyContribution, expectedPeriods ? 9000 / expectedPeriods : null);
+});
+
 test('buy-versus-save comparison calculates time, fees, and financed costs', () => {
   const result = calculateBuyVsSave({ itemPrice: 12000, availableSavings: 4000, monthlySavings: 2000, cardApr: 24, loanRate: 0, months: 4, cardFee: 100, loanFee: 500 });
   assert.equal(result.options[0].monthsToPurchase, 4);
@@ -95,4 +114,11 @@ test('buy-versus-save comparison calculates time, fees, and financed costs', () 
 test('invalid and non-finite values are rejected with a field name', () => {
   assert.throws(() => calculateInvestment({ principal: -1, years: 5, rate: 8 }), (error) => error.field === 'principal');
   assert.throws(() => calculateLoan({ principal: 100, rate: 5, months: 'NaN' }), (error) => error.field === 'months');
+  assert.throws(() => calculateInvestment({ principal: true, years: 5, rate: 8 }), (error) => error.field === 'principal');
+  assert.throws(() => calculateLoan({ principal: [100], rate: 5, months: 12 }), (error) => error.field === 'principal');
+  assert.throws(() => calculateBudget({ income: 100, categories: { Needs: [] } }), (error) => error.field === 'category:Needs');
+  assert.throws(() => calculateInvestment({ principal: 1e13, years: 5, rate: 8 }), (error) => error.field === 'principal');
+  assert.throws(() => calculate('investment', null), (error) => error.field === 'inputs');
+  const tooManyCategories = Object.fromEntries(Array.from({ length: 101 }, (_, index) => [`Category ${index}`, 0]));
+  assert.throws(() => calculateBudget({ income: 100, categories: tooManyCategories }), (error) => error.field === 'categories');
 });

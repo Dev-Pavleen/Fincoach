@@ -31,10 +31,16 @@ export function registerAuthRoutes(router) {
     const { name, email: submittedEmail, password } = parsed.data;
     const email = submittedEmail.toLowerCase();
     if (await findUserByEmail(email)) return res.status(409).json({ error: 'An account with this email already exists.' });
-    const user = await createUser({ name, email, passwordHash: await bcrypt.hash(password, 12) });
-    if (!user) return res.status(409).json({ error: 'An account with this email already exists.' });
-    res.cookie(cookieName, jwt.sign({}, process.env.JWT_SECRET, { subject: String(user._id), expiresIn: '7d' }), cookieOptions());
-    res.status(201).json({ user: safeUser(user) });
+    try {
+      const user = await createUser({ name, email, passwordHash: await bcrypt.hash(password, 12) });
+      if (!user) return res.status(409).json({ error: 'An account with this email already exists.' });
+      res.cookie(cookieName, jwt.sign({}, process.env.JWT_SECRET, { subject: String(user._id), expiresIn: '7d' }), cookieOptions());
+      return res.status(201).json({ user: safeUser(user) });
+    } catch (error) {
+      // A concurrent registration can win after the pre-check but before Mongo's unique index.
+      if (error.code === 11000 || error.codeName === 'DuplicateKey') return res.status(409).json({ error: 'An account with this email already exists.' });
+      throw error;
+    }
   });
   router.post('/auth/login', async (req, res) => {
     const parsed = loginCredentials.safeParse(req.body);

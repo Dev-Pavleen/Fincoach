@@ -1,7 +1,10 @@
 const fail = (field, message) => { throw Object.assign(new Error(message), { field }); };
+const MAX_AMOUNT = 1_000_000_000_000;
 const positive = (value, field, label, allowZero = false) => {
+  if (!['number', 'string'].includes(typeof value) || (typeof value === 'string' && !value.trim())) fail(field, `${label} must be a valid number.`);
   const n = Number(value);
   if (!Number.isFinite(n) || (allowZero ? n < 0 : n <= 0)) fail(field, `${label} must be a valid ${allowZero ? 'non-negative' : 'positive'} number.`);
+  if (n > MAX_AMOUNT) fail(field, `${label} cannot exceed ₹${MAX_AMOUNT.toLocaleString('en-IN')}.`);
   return n;
 };
 const bounded = (value, field, label, min, max, allowZero = false) => {
@@ -20,18 +23,24 @@ export function calculateInvestment(input) {
   const monthlyContribution = positive(input.monthlyContribution ?? 0, 'monthlyContribution', 'Monthly contribution', true);
   const annualIncrease = bounded(input.annualIncrease ?? 0, 'annualIncrease', 'Annual contribution increase', 0, 100, true) / 100;
   const inflation = bounded(input.inflation ?? 0, 'inflation', 'Inflation assumption', 0, 100, true) / 100;
-  const months = Math.round(years * 12);
+  const months = years * 12;
+  const completeMonths = Math.floor(months);
+  const finalMonthFraction = months - completeMonths;
   const buildPath = (annualRate) => {
     const monthlyRate = (1 + annualRate / frequency) ** (frequency / 12) - 1;
     let balance = principal;
     let contributions = 0;
     const chart = [{ period: 'Today', value: balance, invested: balance }];
-    for (let month = 1; month <= months; month += 1) {
+    for (let month = 1; month <= completeMonths; month += 1) {
       balance *= 1 + monthlyRate;
       const contribution = monthlyContribution * (1 + annualIncrease) ** Math.floor((month - 1) / 12);
       balance += contribution;
       contributions += contribution;
       if (month % 12 === 0 || month === months) chart.push({ period: `Year ${(month / 12).toFixed(month % 12 ? 1 : 0)}`, value: balance, invested: principal + contributions });
+    }
+    if (finalMonthFraction > 1e-10) {
+      balance *= (1 + monthlyRate) ** finalMonthFraction;
+      chart.push({ period: `Year ${Number(years.toFixed(2))}`, value: balance, invested: principal + contributions });
     }
     return { value: balance, chart };
   };
@@ -85,7 +94,12 @@ export function calculateLoan(input) {
 
 export function calculateBudget(input) {
   const income = positive(input.income, 'income', 'Monthly income');
-  const categories = Object.entries(input.categories ?? {}).map(([name, raw]) => ({ name, value: positive(raw, `category:${name}`, `${name} allocation`, true) }));
+  const entries = Object.entries(input.categories ?? {});
+  if (entries.length > 100) fail('categories', 'Use no more than 100 budget categories.');
+  const categories = entries.map(([name, raw]) => {
+    if (!name.trim() || name.length > 40) fail('categories', 'Category names must contain 1 to 40 characters.');
+    return { name, value: positive(raw, `category:${name}`, `${name} allocation`, true) };
+  });
   if (!categories.length) fail('categories', 'Add at least one budget category.');
   const allocated = categories.reduce((sum, item) => sum + item.value, 0);
   return { income, allocated, remaining: income - allocated, savingsRate: (categories.find((x) => x.name.toLowerCase().includes('saving'))?.value ?? 0) / income * 100, overAllocated: allocated > income, categories, formula: 'Remaining = monthly income − sum of category allocations' };
@@ -150,8 +164,13 @@ export function calculateSavingsGoal(input) {
   const today = new Date();
   const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   if (date.getTime() <= todayUtc) fail('targetDate', 'Target date must be in the future.');
-  const monthsUntilTarget = Math.max(1, (date.getUTCFullYear() - today.getUTCFullYear()) * 12 + date.getUTCMonth() - today.getUTCMonth());
-  if (monthsUntilTarget > 600) fail('targetDate', 'Choose a target date within the next 50 years.');
+  const calendarMonthsUntilTarget = (date.getUTCFullYear() - today.getUTCFullYear()) * 12 + date.getUTCMonth() - today.getUTCMonth();
+  if (calendarMonthsUntilTarget > 600) fail('targetDate', 'Choose a target date within the next 50 years.');
+  let contributionPeriodsUntilTarget = 0;
+  for (let offset = 0; offset <= calendarMonthsUntilTarget; offset += 1) {
+    const monthEnd = Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset + 1, 0);
+    if (monthEnd > todayUtc && monthEnd <= date.getTime()) contributionPeriodsUntilTarget += 1;
+  }
   const monthlyRate = annualRate / 1200;
   const targetReached = currentSavings >= target;
   const schedule = targetReached ? [{ period: 'Today', balance: currentSavings }] : [];
@@ -165,20 +184,20 @@ export function calculateSavingsGoal(input) {
   }
   const estimatedMonths = targetReached ? 0 : schedule.at(-1)?.balance >= target ? schedule.length : null;
   let projectedAtTarget = currentSavings;
-  for (let month = 0; month < monthsUntilTarget; month += 1) projectedAtTarget = projectedAtTarget * (1 + monthlyRate) + monthlyContribution;
-  const growthFactor = (1 + monthlyRate) ** monthsUntilTarget;
-  const annuityFactor = monthlyRate === 0 ? monthsUntilTarget : (growthFactor - 1) / monthlyRate;
-  const requiredMonthlyContribution = Math.max(0, (target - currentSavings * growthFactor) / annuityFactor);
+  for (let month = 0; month < contributionPeriodsUntilTarget; month += 1) projectedAtTarget = projectedAtTarget * (1 + monthlyRate) + monthlyContribution;
+  const growthFactor = (1 + monthlyRate) ** contributionPeriodsUntilTarget;
+  const annuityFactor = monthlyRate === 0 ? contributionPeriodsUntilTarget : contributionPeriodsUntilTarget ? (growthFactor - 1) / monthlyRate : 0;
+  const requiredMonthlyContribution = targetReached ? 0 : annuityFactor ? Math.max(0, (target - currentSavings * growthFactor) / annuityFactor) : null;
   const completionDate = estimatedMonths === null ? null : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + estimatedMonths, 1)).toISOString().slice(0, 10);
   const chart = schedule.length > 80
     ? schedule.filter((_, index) => index === 0 || index === schedule.length - 1 || index % Math.ceil(schedule.length / 80) === 0)
     : schedule;
   return {
     target, currentSavings, monthlyContribution, annualRate, remaining: Math.max(0, target - currentSavings),
-    progressPercent: Math.min(100, currentSavings / target * 100), monthsUntilTarget, estimatedMonths,
+    progressPercent: Math.min(100, currentSavings / target * 100), monthsUntilTarget: Math.max(1, calendarMonthsUntilTarget), contributionPeriodsUntilTarget, estimatedMonths,
     projectedAtTarget, targetReachedByDate: projectedAtTarget >= target, requiredMonthlyContribution,
     completionDate, schedule, chart,
-    formula: 'Monthly balance = previous balance × (1 + annual rate ÷ 12) + end-of-month contribution.',
+    formula: 'Monthly balance = previous balance × (1 + annual rate ÷ 12) + end-of-month contribution. The target-date projection includes deposits only when a month end falls on or before the selected date.',
   };
 }
 
@@ -215,6 +234,7 @@ export function calculateBuyVsSave(input) {
 }
 
 export function calculate(type, inputs) {
+  if (!inputs || typeof inputs !== 'object' || Array.isArray(inputs)) fail('inputs', 'Enter simulator inputs as a valid object.');
   if (type === 'investment') return calculateInvestment(inputs);
   if (type === 'loan') return calculateLoan(inputs);
   if (type === 'budget') return calculateBudget(inputs);
