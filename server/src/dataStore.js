@@ -240,12 +240,34 @@ export async function listComparisons(userId) {
   return (await readLocal()).comparisons.filter((item) => item.userId === String(userId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 100);
 }
 
+export async function findComparison(id, userId) {
+  if (hasMongoConnection()) return Comparison.findOne({ _id: id, userId }).lean();
+  return copy((await readLocal()).comparisons.find((item) => item._id === String(id) && item.userId === String(userId)) || null);
+}
+
 export async function createComparison(input) {
   if (hasMongoConnection()) return Comparison.create(input);
   return changeLocal((data) => {
     const now = new Date().toISOString();
     const record = { _id: localId(), schemaVersion: 1, ...input, userId: String(input.userId), createdAt: now, updatedAt: now };
     data.comparisons.push(record);
+    return copy(record);
+  });
+}
+
+export async function appendComparisonVersion(id, userId, version, initialVersion) {
+  if (hasMongoConnection()) {
+    const existing = await Comparison.findOne({ _id: id, userId }).lean();
+    if (!existing) return null;
+    if (!existing.versions?.length) await Comparison.updateOne({ _id: id, userId, $or: [{ versions: { $exists: false } }, { versions: { $size: 0 } }] }, { $set: { versions: [initialVersion] } });
+    return Comparison.findOneAndUpdate({ _id: id, userId }, { $push: { versions: version } }, { new: true, runValidators: true }).lean();
+  }
+  return changeLocal((data) => {
+    const record = data.comparisons.find((item) => item._id === String(id) && item.userId === String(userId));
+    if (!record) return null;
+    if (!record.versions?.length) record.versions = [copy(initialVersion)];
+    record.versions.push(copy(version));
+    record.updatedAt = new Date().toISOString();
     return copy(record);
   });
 }

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { calculate } from '../../shared/calculations.js';
 import { books, courses } from '../../shared/learningContent.js';
-import { connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findScenario, getLearningProgress, hasMongoConnection, listComparisons, listScenarios, recordQuizAttempt, renameComparison, renameScenario, saveLearningProgress, saveReadingList } from './dataStore.js';
+import { appendComparisonVersion, connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findComparison, findScenario, getLearningProgress, hasMongoConnection, listComparisons, listScenarios, recordQuizAttempt, renameComparison, renameScenario, saveLearningProgress, saveReadingList } from './dataStore.js';
 import { registerAuthRoutes, requireAuth } from './auth.js';
 
 const supportedTypes = ['investment', 'loan', 'credit-card', 'budget', 'savings-goal', 'buy-vs-save'];
@@ -15,6 +15,16 @@ const router = express.Router();
 registerAuthRoutes(router);
 const snapshot = (record) => ({ id: String(record._id), type: record.type, title: record.title, inputs: record.inputs, assumptions: record.assumptions, results: record.results, schemaVersion: record.schemaVersion, createdAt: record.createdAt, updatedAt: record.updatedAt });
 const fieldMessage = (error) => ({ error: error.message, field: error.field });
+const flattenInputs = (value, prefix = '') => Object.entries(value ?? {}).flatMap(([key, item]) => item && typeof item === 'object' && !Array.isArray(item) ? flattenInputs(item, `${prefix}${key}.`) : [[`${prefix}${key}`, item]]);
+const replayDifferences = (baseline, variant) => {
+  const left = Object.fromEntries(flattenInputs(baseline)); const right = Object.fromEntries(flattenInputs(variant));
+  return [...new Set([...Object.keys(left), ...Object.keys(right)])].filter((key) => JSON.stringify(left[key]) !== JSON.stringify(right[key])).map((key) => ({ key, baseline: left[key] ?? null, variant: right[key] ?? null }));
+};
+const comparisonView = (record) => {
+  const versionRecords = record.versions?.length ? record.versions : [{ scenario: record.scenarioB, changes: replayDifferences(record.scenarioA.inputs, record.scenarioB.inputs), notes: '', createdAt: record.createdAt }];
+  const versions = versionRecords.map((version, index) => ({ ...version, versionNumber: index + 1 }));
+  return { id: String(record._id), title: record.title, scenarioA: record.scenarioA, scenarioB: record.scenarioB, versions, createdAt: record.createdAt, updatedAt: record.updatedAt };
+};
 
 router.get('/health', async (_req, res) => {
   if (!isHostedFunction()) return res.json({ status: 'ok', storage: hasMongoConnection() ? 'mongodb' : 'local' });
@@ -105,7 +115,7 @@ router.delete('/simulations/:id', requireAuth, async (req, res) => {
 });
 router.get('/comparisons', requireAuth, async (req, res) => {
   const records = await listComparisons(req.userId);
-  res.json({ comparisons: records.map((item) => ({ id: String(item._id), title: item.title, scenarioA: item.scenarioA, scenarioB: item.scenarioB, createdAt: item.createdAt })) });
+  res.json({ comparisons: records.map(comparisonView) });
 });
 router.post('/comparisons', requireAuth, async (req, res) => {
   const scenario = z.object({ type: z.enum(supportedTypes), inputs: z.record(z.string(), z.unknown()) });
@@ -117,8 +127,34 @@ router.post('/comparisons', requireAuth, async (req, res) => {
     scenarioA = { type: parsed.data.scenarioA.type, inputs: parsed.data.scenarioA.inputs, results: calculate(parsed.data.scenarioA.type, parsed.data.scenarioA.inputs) };
     scenarioB = { type: parsed.data.scenarioB.type, inputs: parsed.data.scenarioB.inputs, results: calculate(parsed.data.scenarioB.type, parsed.data.scenarioB.inputs) };
   } catch (error) { return res.status(400).json(fieldMessage(error)); }
-  const record = await createComparison({ userId: req.userId, title: parsed.data.title, scenarioA, scenarioB });
-  res.status(201).json({ comparison: { id: String(record._id), title: record.title, scenarioA: record.scenarioA, scenarioB: record.scenarioB, createdAt: record.createdAt } });
+  const initialVersion = { scenario: scenarioB, changes: replayDifferences(scenarioA.inputs, scenarioB.inputs), notes: '', createdAt: new Date().toISOString() };
+  const record = await createComparison({ userId: req.userId, title: parsed.data.title, scenarioA, scenarioB, versions: [initialVersion] });
+  res.status(201).json({ comparison: comparisonView(record) });
+});
+router.get('/comparisons/:id/versions', requireAuth, async (req, res) => {
+  if (!/^[a-f\d]{24}$/i.test(req.params.id)) return res.status(400).json({ error: 'Invalid comparison ID.' });
+  const record = await findComparison(req.params.id, req.userId);
+  if (!record) return res.status(404).json({ error: 'Comparison not found.' });
+  res.json({ comparison: comparisonView(record) });
+});
+router.post('/comparisons/:id/versions', requireAuth, async (req, res) => {
+  if (!/^[a-f\d]{24}$/i.test(req.params.id)) return res.status(400).json({ error: 'Invalid comparison ID.' });
+  const parsed = z.object({ inputs: z.record(z.string(), z.unknown()), notes: z.string().trim().max(500).optional().default('') }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Check the replay inputs and notes.', details: parsed.error.flatten().fieldErrors });
+  const record = await findComparison(req.params.id, req.userId);
+  if (!record) return res.status(404).json({ error: 'Comparison not found.' });
+  const type = record.scenarioA.type;
+  let results;
+  try { results = calculate(type, parsed.data.inputs); }
+  catch (error) { return res.status(400).json(fieldMessage(error)); }
+  if (type === 'budget' && results.overAllocated) return res.status(400).json({ error: 'Budget allocations cannot exceed monthly income.', field: 'income' });
+  const scenario = { type, inputs: parsed.data.inputs, results };
+  const version = { scenario, changes: replayDifferences(record.scenarioA.inputs, scenario.inputs), notes: parsed.data.notes, createdAt: new Date().toISOString() };
+  const initialVersion = { scenario: record.scenarioB, changes: replayDifferences(record.scenarioA.inputs, record.scenarioB.inputs), notes: '', createdAt: record.createdAt };
+  const updated = await appendComparisonVersion(req.params.id, req.userId, version, initialVersion);
+  if (!updated) return res.status(404).json({ error: 'Comparison not found.' });
+  const view = comparisonView(updated);
+  res.status(201).json({ comparison: view, version: view.versions.at(-1) });
 });
 router.patch('/comparisons/:id', requireAuth, async (req, res) => {
   const parsed = z.object({ title: z.string().trim().min(1).max(120) }).safeParse(req.body);
@@ -126,7 +162,7 @@ router.patch('/comparisons/:id', requireAuth, async (req, res) => {
   if (!/^[a-f\d]{24}$/i.test(req.params.id)) return res.status(400).json({ error: 'Invalid comparison ID.' });
   const record = await renameComparison(req.params.id, req.userId, parsed.data.title);
   if (!record) return res.status(404).json({ error: 'Comparison not found.' });
-  res.json({ comparison: { id: String(record._id), title: record.title, scenarioA: record.scenarioA, scenarioB: record.scenarioB, createdAt: record.createdAt } });
+  res.json({ comparison: comparisonView(record) });
 });
 router.delete('/comparisons/:id', requireAuth, async (req, res) => {
   if (!/^[a-f\d]{24}$/i.test(req.params.id)) return res.status(400).json({ error: 'Invalid comparison ID.' });

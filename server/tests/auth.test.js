@@ -129,6 +129,15 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(comparisonList.data.comparisons[0].id, comparison.data.comparison.id);
   const renamedComparison = await request(`/comparisons/${comparison.data.comparison.id}`, { method: 'PATCH', cookie: login.cookie, body: { title: 'Renamed replay' } });
   assert.equal(renamedComparison.data.comparison.title, 'Renamed replay');
+  const replayVersion = await request(`/comparisons/${comparison.data.comparison.id}/versions`, { method: 'POST', cookie: login.cookie, body: { inputs: { principal: 2000, years: 2, rate: 8 }, notes: 'Raised the return assumption for a sensitivity check.' } });
+  assert.equal(replayVersion.response.status, 201);
+  assert.equal(replayVersion.data.version.versionNumber, 2);
+  assert.equal(replayVersion.data.version.notes, 'Raised the return assumption for a sensitivity check.');
+  assert.ok(Math.abs(replayVersion.data.version.scenario.results.finalValue - 2332.8) < 0.02);
+  assert.equal(replayVersion.data.comparison.scenarioA.inputs.principal, 1000);
+  assert.equal(replayVersion.data.comparison.versions[0].scenario.inputs.rate, 8);
+  const replayHistory = await request(`/comparisons/${comparison.data.comparison.id}/versions`, { cookie: login.cookie });
+  assert.equal(replayHistory.data.comparison.versions.length, 2);
 
   const secondUser = await request('/auth/register', {
     method: 'POST', body: { name: 'Student Two', email: 'two@example.test', password: 'learning456', confirmPassword: 'learning456' },
@@ -142,6 +151,10 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(privateRecord.response.status, 404);
   const secondUserComparisons = await request('/comparisons', { cookie: secondUser.cookie });
   assert.deepEqual(secondUserComparisons.data.comparisons, []);
+  const privateReplay = await request(`/comparisons/${comparison.data.comparison.id}/versions`, { cookie: secondUser.cookie });
+  assert.equal(privateReplay.response.status, 404);
+  const privateReplayWrite = await request(`/comparisons/${comparison.data.comparison.id}/versions`, { method: 'POST', cookie: secondUser.cookie, body: { inputs: { principal: 5000, years: 1, rate: 12 } } });
+  assert.equal(privateReplayWrite.response.status, 404);
   const deletedComparison = await request(`/comparisons/${comparison.data.comparison.id}`, { method: 'DELETE', cookie: login.cookie });
   assert.equal(deletedComparison.response.status, 204);
   const deletedScenario = await request(`/simulations/${saved.data.simulation.id}`, { method: 'DELETE', cookie: login.cookie });

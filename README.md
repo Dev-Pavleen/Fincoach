@@ -24,6 +24,7 @@ npm run build
 
 - Six responsive simulators with input validation, charts, and formula/assumption breakdowns, including goal-date savings estimates and save-first versus financing cost comparisons.
 - Browser-persisted scenarios and immutable, reopenable Decision Replay comparisons; account users can store comparisons on the server.
+- Decision Replay keeps an append-only version timeline for each comparison, including input changes, notes, timestamps, and server-recomputed result snapshots. The baseline remains fixed while new assumptions are replayed.
 - Optional account registration and login using bcrypt password hashes and an HTTP-only session cookie.
 - Profile editing, authenticated password changes, and password-confirmed account deletion, plus saved-scenario export and deletion controls.
 - MongoDB models for user-owned simulations, immutable comparison snapshots, and per-user learning progress and quiz attempts.
@@ -72,6 +73,9 @@ flowchart LR
 | `POST /api/learning/attempts` | Signed in | Server-check and save one idempotent lesson quiz attempt |
 | `PUT /api/learning/reading-list` | Signed in | Save validated book reading statuses for the account |
 | `POST /api/comparisons` | Signed in | Save immutable comparison snapshots |
+| `GET /api/comparisons` | Signed in | List the user's comparisons and replay versions |
+| `GET /api/comparisons/:id/versions` | Signed in | Retrieve version history for one owned comparison |
+| `POST /api/comparisons/:id/versions` | Signed in | Recompute inputs server-side and append an immutable replay version |
 | `PATCH /api/comparisons/:id` | Signed in | Rename one owned comparison |
 | `DELETE /api/comparisons/:id` | Signed in | Delete one owned comparison |
 

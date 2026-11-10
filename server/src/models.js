@@ -23,6 +23,7 @@ const comparisonSchema = new mongoose.Schema({
   schemaVersion: { type: Number, default: 1 },
   scenarioA: { type: mongoose.Schema.Types.Mixed, required: true },
   scenarioB: { type: mongoose.Schema.Types.Mixed, required: true },
+  versions: { type: [mongoose.Schema.Types.Mixed], default: [] },
 }, { timestamps: true });
 
 const learningProgressSchema = new mongoose.Schema({
