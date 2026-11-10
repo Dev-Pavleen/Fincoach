@@ -18,6 +18,7 @@ function installApi({ authenticated = false } = {}) {
     if (url === '/api/simulations') return response(200, { simulations: [] });
     if (url === '/api/comparisons') return response(200, { comparisons: [] });
     if (url === '/api/learning/progress') return response(200, emptyProgress);
+    if (url === '/api/auth/profile') return response(200, { user: { ...account, ...JSON.parse(options.body) } });
     return response(200, {});
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -78,5 +79,32 @@ describe('account interface and session restoration', () => {
     const registration = calls.find((call) => call.url === '/api/auth/register');
     expect(registration).toBeTruthy();
     expect(JSON.parse(registration.body)).toEqual({ name: account.name, confirmPassword: 'learning123', email: account.email, password: 'learning123' });
+  });
+
+  it('persists a selected theme from Settings', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
+
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(JSON.parse(localStorage.getItem('fincoach-theme'))).toBe('dark');
+  });
+
+  it('saves account profile changes from Settings', async () => {
+    const { calls } = installApi({ authenticated: true });
+    render(<App />);
+    expect(await screen.findByRole('button', { name: `Account: ${account.name}` })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Updated Student' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'updated@example.test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    expect(await screen.findByText('Profile updated')).toBeTruthy();
+    const update = calls.find((call) => call.url === '/api/auth/profile');
+    expect(update?.method).toBe('PATCH');
+    expect(JSON.parse(update.body)).toEqual({ name: 'Updated Student', email: 'updated@example.test' });
+    expect(await screen.findByRole('button', { name: 'Account: Updated Student' })).toBeTruthy();
   });
 });
