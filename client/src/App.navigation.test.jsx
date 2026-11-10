@@ -53,6 +53,21 @@ describe('learning and workspace navigation', () => {
     expect(await screen.findByRole('heading', { name: 'Money as a tool' })).toBeTruthy();
   });
 
+  it('saves a correct lesson check and restores progress after a reload', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Introduction to Personal Finance/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Understanding money/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'It makes the goal easier to plan and review' }));
+    expect(await screen.findByText(/Correct\./)).toBeTruthy();
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('fincoach-lessons') || '[]')).toContain('personal-finance.money-basics'));
+
+    cleanup();
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'My progress' }));
+    expect(await screen.findByText('1 of 7 lessons · 14%')).toBeTruthy();
+  });
+
   it('opens Overview from the Student workspace control', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
