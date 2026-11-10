@@ -5,6 +5,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { calculate } from '../../shared/calculations.js';
 import { books, courses } from '../../shared/learningContent.js';
+import { assessmentById } from '../../shared/courseAssessments.js';
 import { appendComparisonVersion, connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findComparison, findScenario, getLearningProgress, hasMongoConnection, listComparisons, listScenarios, recordQuizAttempt, renameComparison, renameScenario, saveLearningProgress, saveReadingList } from './dataStore.js';
 import { registerAuthRoutes, requireAuth } from './auth.js';
 
@@ -70,6 +71,30 @@ router.post('/learning/attempts', requireAuth, async (req, res) => {
   if (!lesson || parsed.data.selectedAnswer >= lesson.options.length) return res.status(404).json({ error: 'Quiz question not found.' });
   const isCorrect = parsed.data.selectedAnswer === lesson.answer;
   const attempt = { ...parsed.data, isCorrect, score: isCorrect ? 1 : 0, total: 1, createdAt: new Date().toISOString() };
+  const stored = await recordQuizAttempt(req.userId, attempt);
+  res.status(stored.duplicate ? 200 : 201).json({ attempt: stored.attempt, duplicate: stored.duplicate });
+});
+router.post('/learning/assessments/:assessmentId/attempts', requireAuth, async (req, res) => {
+  const parsed = z.object({ attemptId: z.string().uuid(), answers: z.array(z.number().int().min(0).max(20)).max(30) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Check the assessment answers and try again.', details: parsed.error.flatten().fieldErrors });
+  const assessment = assessmentById.get(req.params.assessmentId);
+  if (!assessment) return res.status(404).json({ error: 'Course assessment not found.' });
+  if (parsed.data.answers.length !== assessment.questions.length || parsed.data.answers.some((answer, index) => answer >= assessment.questions[index].options.length)) {
+    return res.status(400).json({ error: 'Answer every question using one of its listed options.' });
+  }
+  const score = parsed.data.answers.reduce((total, answer, index) => total + Number(answer === assessment.questions[index].answer), 0);
+  const attempt = {
+    ...parsed.data,
+    kind: 'course-assessment',
+    assessmentId: assessment.id,
+    courseId: assessment.courseId,
+    title: assessment.title,
+    score,
+    total: assessment.questions.length,
+    percentage: Math.round((score / assessment.questions.length) * 100),
+    isCorrect: score === assessment.questions.length,
+    createdAt: new Date().toISOString(),
+  };
   const stored = await recordQuizAttempt(req.userId, attempt);
   res.status(stored.duplicate ? 200 : 201).json({ attempt: stored.attempt, duplicate: stored.duplicate });
 });

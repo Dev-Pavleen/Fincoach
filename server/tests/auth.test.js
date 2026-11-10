@@ -44,6 +44,8 @@ async function request(pathname, { method = 'GET', body, cookie } = {}) {
 }
 
 test('registration validation, account login, sessions and owner-scoped scenarios', async () => {
+  const unauthenticatedAssessment = await request('/learning/assessments/personal-finance-review-v1/attempts', { method: 'POST', body: { attemptId: 'c09a3517-512b-4e75-9fe4-6fde0e2a9861', answers: [0, 0, 1, 0] } });
+  assert.equal(unauthenticatedAssessment.response.status, 401);
   const mismatch = await request('/auth/register', {
     method: 'POST', body: { name: 'Student One', email: 'one@example.test', password: 'learning123', confirmPassword: 'learning456' },
   });
@@ -115,8 +117,22 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(duplicateAttempt.data.duplicate, true);
   const correctAttempt = await request('/learning/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: '774c7628-563d-41ea-8b84-bfb5d3d46ae1', lessonId: 'personal-finance.money-basics', selectedAnswer: 0 } });
   assert.equal(correctAttempt.data.attempt.isCorrect, true);
+  const courseAssessment = await request('/learning/assessments/personal-finance-review-v1/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: '9241c4d7-7825-43a1-8d59-071d073623d2', answers: [0, 0, 1, 0] } });
+  assert.equal(courseAssessment.response.status, 201);
+  assert.equal(courseAssessment.data.attempt.score, 4);
+  assert.equal(courseAssessment.data.attempt.total, 4);
+  assert.equal(courseAssessment.data.attempt.percentage, 100);
+  const duplicateAssessment = await request('/learning/assessments/personal-finance-review-v1/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: '9241c4d7-7825-43a1-8d59-071d073623d2', answers: [2, 1, 0, 2] } });
+  assert.equal(duplicateAssessment.response.status, 200);
+  assert.equal(duplicateAssessment.data.duplicate, true);
+  assert.equal(duplicateAssessment.data.attempt.score, 4);
+  const gradedAssessment = await request('/learning/assessments/personal-finance-review-v1/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: '2240dd41-6e5f-4027-984f-ed155b16036f', answers: [0, 0, 0, 0] } });
+  assert.equal(gradedAssessment.data.attempt.score, 3);
+  assert.equal(gradedAssessment.data.attempt.percentage, 75);
+  const incompleteAssessment = await request('/learning/assessments/personal-finance-review-v1/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: '19b63d59-554a-4a3c-9821-bac7f8cbad91', answers: [0] } });
+  assert.equal(incompleteAssessment.response.status, 400);
   const attemptHistory = await request('/learning/progress', { cookie: login.cookie });
-  assert.equal(attemptHistory.data.progress.quizAttempts.length, 2);
+  assert.equal(attemptHistory.data.progress.quizAttempts.length, 4);
   const readingSaved = await request('/learning/reading-list', { method: 'PUT', cookie: login.cookie, body: { items: [{ title: 'The Psychology of Money', status: 'Reading' }] } });
   assert.equal(readingSaved.response.status, 200);
   assert.deepEqual(readingSaved.data.readingList, [{ title: 'The Psychology of Money', status: 'Reading' }]);

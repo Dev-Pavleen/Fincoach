@@ -30,7 +30,7 @@ npm run build
 - MongoDB models for user-owned simulations, immutable comparison snapshots, and per-user learning progress and quiz attempts.
 - Public calculation endpoints for all six simulators and authenticated scenario CRUD, learning progress, and quiz-attempt endpoints.
 - Search, simulator filters, and date/name sorting for scenario history.
-- Eight searchable learning courses covering 70 structured modules, with knowledge checks, related simulator links, previous/next lesson navigation, a searchable book and official-resource library, reading status, and a dedicated progress view. Guest progress stays in the browser; signed-in lesson progress, server-checked quiz attempts, and reading status are stored with the account.
+- Eight searchable learning courses covering 70 modules, with individual lesson checks, previous/next navigation, and one four-question course-end assessment per course. The 32 assessment questions include multiple-choice, true/false, scenario, and calculation formats with explanations; authenticated scores are recomputed by the API. The book and official-resource library is searchable, and reading status and learning progress are tracked.
 - Light, dark, and system display themes, a getting-started checklist, and resettable simulator inputs.
 
 ## Architecture
@@ -48,7 +48,7 @@ flowchart LR
   DB --> LEARN[Learning progress and quiz attempts]
 ```
 
-`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` supplies the lesson quiz answer key to the API so signed-in scores are computed by the server. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
+`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` supplies lesson-check answers and `shared/courseAssessments.js` supplies course assessment keys to the API, so signed-in scores are recomputed server-side. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
 
 ## API
 
@@ -71,6 +71,7 @@ flowchart LR
 | `GET /api/learning/progress` | Signed in | Read the user's completed lessons and quiz attempts |
 | `PUT /api/learning/progress` | Signed in | Replace the user's validated completed lesson list |
 | `POST /api/learning/attempts` | Signed in | Server-check and save one idempotent lesson quiz attempt |
+| `POST /api/learning/assessments/:assessmentId/attempts` | Signed in | Re-grade submitted choices against the shared question bank and save one idempotent course assessment |
 | `PUT /api/learning/reading-list` | Signed in | Save validated book reading statuses for the account |
 | `POST /api/comparisons` | Signed in | Save immutable comparison snapshots |
 | `GET /api/comparisons` | Signed in | List the user's comparisons and replay versions |
