@@ -27,6 +27,10 @@ const modules = [
   { id: 'buy-vs-save', label: 'Buy vs save', icon: ShoppingBag, caption: 'Compare purchase paths', accent: 'peach' },
 ];
 const titleFor = (id) => modules.find((item) => item.id === id)?.label ?? 'Investment & FD';
+const supportedModuleIds = new Set(modules.map((item) => item.id));
+const courseLessonIds = new Set(courses.flatMap((course) => course.modules.map((item) => item.lesson.id)));
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isSnapshot = (value) => isRecord(value) && supportedModuleIds.has(value.type) && isRecord(value.inputs);
 const scenarioOutcome = (record) => {
   const result = record?.result ?? record?.results ?? {};
   if (record?.type === 'investment') return ['Illustrative value', formatINR(result.finalValue)];
@@ -40,8 +44,33 @@ const scenarioOutcome = (record) => {
   }
   return ['Scenario', '—'];
 };
-const safeRead = () => { try { return JSON.parse(localStorage.getItem('fincoach-scenarios') || '[]'); } catch { return []; } };
+const safeReadArray = (key) => {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch { return []; }
+};
 const safeReadKey = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; } };
+const safeRead = () => safeReadArray('fincoach-scenarios').filter((item) =>
+  isRecord(item) && typeof item.id === 'string' && isSnapshot(item) && isRecord(item.result ?? item.results));
+const safeReadComparisons = () => safeReadArray('fincoach-comparisons')
+  .filter((item) => isRecord(item) && typeof item.id === 'string' && isSnapshot(item.scenarioA) && isSnapshot(item.scenarioB) && item.scenarioA.type === item.scenarioB.type)
+  .map((item) => ({ ...item, versions: Array.isArray(item.versions) ? item.versions.filter((version) => isRecord(version) && isSnapshot(version.scenario) && version.scenario.type === item.scenarioA.type) : [] }));
+const safeReadLessons = () => safeReadArray('fincoach-lessons').filter((id) => typeof id === 'string' && courseLessonIds.has(id));
+const safeReadAttempts = (key = 'fincoach-quiz-attempts') => safeReadArray(key).filter((attempt) =>
+  isRecord(attempt) && typeof attempt.attemptId === 'string' && Number.isFinite(attempt.score) && Number.isFinite(attempt.total) && attempt.total > 0);
+const safeReadReadingList = () => safeReadArray('fincoach-reading-list').filter((item) =>
+  isRecord(item) && typeof item.title === 'string' && ['Want to Read', 'Reading', 'Completed'].includes(item.status));
+const safeReadLastLesson = () => {
+  const target = safeReadKey('fincoach-last-lesson', null);
+  if (!isRecord(target)) return null;
+  const course = courses.find((item) => item.id === target.courseId);
+  return course?.modules.some((item) => item.id === target.lessonId) ? { courseId: target.courseId, lessonId: target.lessonId } : null;
+};
+const safeReadTheme = () => {
+  const value = safeReadKey('fincoach-theme', 'light');
+  return ['light', 'dark', 'system'].includes(value) ? value : 'light';
+};
 const newestAttempts = (items) => [...items].sort((left, right) => {
   const leftTime = Date.parse(left?.createdAt ?? '');
   const rightTime = Date.parse(right?.createdAt ?? '');
@@ -63,11 +92,11 @@ function App() {
   const [module, setModule] = useState('investment');
   const [inputs, setInputs] = useState(initialInputs);
   const [history, setHistory] = useState(safeRead);
-  const [comparisons, setComparisons] = useState(() => safeReadKey('fincoach-comparisons', []));
-  const [completedLessons, setCompletedLessons] = useState(() => safeReadKey('fincoach-lessons', []));
-  const [quizAttempts, setQuizAttempts] = useState(() => safeReadKey('fincoach-quiz-attempts', []));
-  const [readingList, setReadingList] = useState(() => safeReadKey('fincoach-reading-list', []));
-  const [theme, setTheme] = useState(() => safeReadKey('fincoach-theme', 'light'));
+  const [comparisons, setComparisons] = useState(safeReadComparisons);
+  const [completedLessons, setCompletedLessons] = useState(safeReadLessons);
+  const [quizAttempts, setQuizAttempts] = useState(safeReadAttempts);
+  const [readingList, setReadingList] = useState(safeReadReadingList);
+  const [theme, setTheme] = useState(safeReadTheme);
   const [active, setActive] = useState(null);
   const [scenarioA, setScenarioA] = useState(null);
   const [scenarioB, setScenarioB] = useState(null);
@@ -115,7 +144,7 @@ function App() {
         if (!mounted) return;
         if (simResponse.ok) { const body = await simResponse.json(); setHistory(body.simulations.map(normalizeRemote)); }
         if (compareResponse.ok) { const body = await compareResponse.json(); setComparisons(body.comparisons.map(normalizeComparison)); }
-        if (progressResponse.ok) { const body = await progressResponse.json(); setCompletedLessons(body.progress.completedLessons || []); setQuizAttempts(newestAttempts([...(body.progress.quizAttempts || []), ...safeReadKey('fincoach-pending-quiz-attempts', [])])); setReadingList(body.progress.readingList || []); }
+        if (progressResponse.ok) { const body = await progressResponse.json(); setCompletedLessons(Array.isArray(body.progress.completedLessons) ? body.progress.completedLessons.filter((id) => courseLessonIds.has(id)) : []); setQuizAttempts(newestAttempts([...(Array.isArray(body.progress.quizAttempts) ? body.progress.quizAttempts : []), ...safeReadAttempts('fincoach-pending-quiz-attempts')])); setReadingList(Array.isArray(body.progress.readingList) ? body.progress.readingList : []); }
       } catch { /* A guest can keep using the local learning experience while offline. */ }
     };
     restoreAccount();
@@ -231,7 +260,7 @@ function App() {
       }
       if (!body.user) throw new Error('We couldn’t complete sign-in. Please try again.');
       if (authMode === 'register' && quizAttempts.length) {
-        const pending = safeReadKey('fincoach-pending-quiz-attempts', []);
+        const pending = safeReadAttempts('fincoach-pending-quiz-attempts');
         localStorage.setItem('fincoach-pending-quiz-attempts', JSON.stringify([...new Map([...pending, ...quizAttempts].map((item) => [item.attemptId, item])).values()]));
       }
       setUser(body.user);
@@ -249,7 +278,7 @@ function App() {
         const merged = authMode === 'register' ? [...new Set([...accountLessons, ...completedLessons])] : accountLessons;
         setCompletedLessons(merged);
         const accountAttempts = saved.progress.quizAttempts || [];
-        const pendingAttempts = safeReadKey('fincoach-pending-quiz-attempts', []);
+        const pendingAttempts = safeReadAttempts('fincoach-pending-quiz-attempts');
         const localAttempts = authMode === 'register' ? [...quizAttempts, ...pendingAttempts] : pendingAttempts;
         const accountReading = saved.progress.readingList || [];
         const localReading = authMode === 'register' ? readingList : [];
@@ -271,7 +300,7 @@ function App() {
         } else setReadingList(accountReading);
       } else {
         accountDataNeedsRefresh = true;
-        setQuizAttempts(newestAttempts([...quizAttempts, ...safeReadKey('fincoach-pending-quiz-attempts', [])]));
+        setQuizAttempts(newestAttempts([...quizAttempts, ...safeReadAttempts('fincoach-pending-quiz-attempts')]));
       }
       setAccountOpen(false);
       setToast(accountDataNeedsRefresh ? 'Signed in; some account data could not refresh yet.' : authMode === 'register' ? 'Your learning account is ready' : `Welcome back, ${body.user.name}`);
@@ -283,8 +312,8 @@ function App() {
   };
   const saveProfile = async (profile) => { try { const response = await fetch('/api/auth/profile', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Could not update your profile.'); setUser(body.user); setToast('Profile updated'); return true; } catch (caught) { setToast(caught.message); return false; } };
   const changePassword = async (passwords) => { try { const response = await fetch('/api/auth/password', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(passwords) }); const body = await response.json(); if (!response.ok) throw new Error(body.details?.newPassword?.[0] || body.error || 'Could not update your password.'); setToast('Password updated'); return true; } catch (caught) { setToast(caught.message); return false; } };
-  const deleteAccount = async (currentPassword) => { try { const response = await fetch('/api/auth/account', { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword }) }); if (!response.ok) { const body = await response.json(); throw new Error(body.error || 'Could not delete this account.'); } setUser(null); setHistory(safeRead()); setComparisons(safeReadKey('fincoach-comparisons', [])); setCompletedLessons(safeReadKey('fincoach-lessons', [])); setQuizAttempts(safeReadKey('fincoach-quiz-attempts', [])); setReadingList(safeReadKey('fincoach-reading-list', [])); setToast('Account and account scenarios deleted'); return true; } catch (caught) { setToast(caught.message); return false; } };
-  const signOut = async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {} setUser(null); setHistory(safeRead()); setComparisons(safeReadKey('fincoach-comparisons', [])); setCompletedLessons(safeReadKey('fincoach-lessons', [])); setQuizAttempts(safeReadKey('fincoach-quiz-attempts', [])); setReadingList(safeReadKey('fincoach-reading-list', [])); setAccountOpen(false); setToast('Signed out'); };
+  const deleteAccount = async (currentPassword) => { try { const response = await fetch('/api/auth/account', { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword }) }); if (!response.ok) { const body = await response.json(); throw new Error(body.error || 'Could not delete this account.'); } setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setToast('Account and account scenarios deleted'); return true; } catch (caught) { setToast(caught.message); return false; } };
+  const signOut = async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {} setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setAccountOpen(false); setToast('Signed out'); };
   const clearHistory = async () => {
     if (!window.confirm(`Delete all ${history.length} saved ${history.length === 1 ? 'scenario' : 'scenarios'}? This cannot be undone.`)) return;
     if (user) {
@@ -631,7 +660,7 @@ function Learn({ initialTarget, completedLessons, quizAttempts, submitQuizAttemp
   const [openCourse, setOpenCourse] = useState(() => initialTarget?.courseId ?? null);
   const [openLesson, setOpenLesson] = useState(() => initialTarget?.lessonId ?? null);
   const [openAssessment, setOpenAssessment] = useState(null);
-  const [resumeTarget,setResumeTarget]=useState(()=>initialTarget ?? safeReadKey('fincoach-last-lesson',null));
+  const [resumeTarget,setResumeTarget]=useState(()=>initialTarget ?? safeReadLastLesson());
   const [searchText, setSearchText] = useState('');
   const [level, setLevel] = useState('All levels');
   const [bookSearch, setBookSearch] = useState('');

@@ -20,11 +20,11 @@ npm test
 npm run build
 ```
 
-`npm test` runs the API/calculation suite and the client interaction suite. The client tests exercise registration, login, password visibility, session restoration, profile updates and account creation date, real progress data in Settings, theme persistence, correct-quiz progress persistence across reloads, every lesson-module link, and a baseline-to-variant Decision Replay through the UI, including saving its version history. They also cover My progress links and the Student workspace return-to-Overview control. The production build compiles the client and prepares the Vercel static assets.
+`npm test` runs the API/calculation suite and the client interaction suite. The client tests exercise registration, login, password visibility, session restoration, profile updates and account creation date, real progress data in Settings, recovery from malformed browser storage, theme persistence, correct-quiz progress persistence across reloads, every lesson-module link, and a baseline-to-variant Decision Replay through the UI, including saving its version history. They also cover My progress links and the Student workspace return-to-Overview control. The production build compiles the client and prepares the Vercel static assets.
 
 ### Latest verification (11 November 2026)
 
-- `npm test`: passed — 29 server/API and calculation tests, plus 12 client interaction tests (41 total).
+- `npm test`: passed — 29 server/API and calculation tests, plus 13 client interaction tests (42 total).
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
 - Netlify function smoke check: its simulator endpoint returned the expected investment result, and an esbuild CommonJS bundle check resolved the function dependencies successfully.
 - Account persistence was verified against the local development JSON store. A live MongoDB Atlas connection and the deployed Netlify/Vercel environment were not available for verification; hosted accounts require valid `MONGODB_URI` and `JWT_SECRET` values, as described below.

@@ -76,4 +76,22 @@ describe('learning and workspace navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Student workspace overview' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Overview' }).className).toContain('nav-active'));
   });
+
+  it('recovers from malformed browser-saved learning data without breaking navigation', async () => {
+    localStorage.setItem('fincoach-scenarios', '{"wrong":"shape"}');
+    localStorage.setItem('fincoach-comparisons', 'null');
+    localStorage.setItem('fincoach-lessons', '{"completed":true}');
+    localStorage.setItem('fincoach-quiz-attempts', '[null, {"attemptId":"bad"}]');
+    localStorage.setItem('fincoach-reading-list', '{"items":[]}');
+    localStorage.setItem('fincoach-theme', '{"theme":"dark"}');
+    localStorage.setItem('fincoach-last-lesson', '{"courseId":"not-a-course"}');
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'My progress' }));
+    expect(await screen.findByRole('heading', { name: 'My progress' })).toBeTruthy();
+    expect(screen.getByText('0/70')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
+    expect(document.documentElement.dataset.theme).toBe('light');
+  });
 });
