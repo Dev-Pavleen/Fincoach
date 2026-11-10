@@ -1,13 +1,14 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
 import { Comparison, Simulation, User } from './models.js';
 
 let mongoConnectPromise;
 
-const localFile = process.env.LOCAL_DATA_FILE || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../data/fincoach-local.json');
+const currentDirectory = process.cwd();
+const serverDirectory = path.basename(currentDirectory).toLowerCase() === 'server' ? currentDirectory : path.join(currentDirectory, 'server');
+const localFile = process.env.LOCAL_DATA_FILE || path.join(serverDirectory, 'data', 'fincoach-local.json');
 const localSecretFile = path.join(path.dirname(localFile), '.jwt-secret');
 let writes = Promise.resolve();
 

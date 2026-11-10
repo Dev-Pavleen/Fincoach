@@ -2,22 +2,21 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { calculate } from '../../shared/calculations.js';
 import { connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findScenario, hasMongoConnection, listComparisons, listScenarios, renameComparison, renameScenario } from './dataStore.js';
 import { registerAuthRoutes, requireAuth } from './auth.js';
 
 const supportedTypes = ['investment', 'loan', 'credit-card', 'budget'];
-const hostedFunction = process.env.FINCOACH_HOSTED === 'true' || process.env.VERCEL === '1' || process.env.NETLIFY === 'true';
-const builtClientIndex = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public/index.html');
+const isHostedFunction = () => process.env.FINCOACH_HOSTED === 'true' || process.env.VERCEL === '1' || process.env.NETLIFY === 'true';
+const builtClientIndex = path.resolve(process.cwd(), 'public/index.html');
 const router = express.Router();
 registerAuthRoutes(router);
 const snapshot = (record) => ({ id: String(record._id), type: record.type, title: record.title, inputs: record.inputs, assumptions: record.assumptions, results: record.results, schemaVersion: record.schemaVersion, createdAt: record.createdAt, updatedAt: record.updatedAt });
 const fieldMessage = (error) => ({ error: error.message, field: error.field });
 
 router.get('/health', async (_req, res) => {
-  if (!hostedFunction) return res.json({ status: 'ok', storage: hasMongoConnection() ? 'mongodb' : 'local' });
+  if (!isHostedFunction()) return res.json({ status: 'ok', storage: hasMongoConnection() ? 'mongodb' : 'local' });
   if (!process.env.MONGODB_URI || !process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
     return res.status(503).json({ status: 'misconfigured', storage: 'unavailable' });
   }
@@ -116,7 +115,7 @@ export function createApp() {
   app.use(express.json({ limit: '32kb' }));
   app.use(cookieParser());
   app.use('/api', async (req, res, next) => {
-    if (!hostedFunction) return next();
+    if (!isHostedFunction()) return next();
     const publicRequest = (req.method === 'GET' && req.path === '/health')
       || (req.method === 'POST' && /^\/simulations\/(investment|loan|credit-card|budget)$/.test(req.path));
     if (publicRequest) return next();

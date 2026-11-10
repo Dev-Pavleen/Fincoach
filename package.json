@@ -12,6 +12,9 @@
     "start": "npm --workspace server run start",
     "test": "npm --workspace server test"
   },
+  "dependencies": {
+    "serverless-http": "^4.0.0"
+  },
   "devDependencies": { "concurrently": "^9.2.1" },
   "engines": { "node": ">=20.19" }
 }
