@@ -30,7 +30,7 @@ npm run build
 - MongoDB models for user-owned simulations, immutable comparison snapshots, and per-user learning progress and quiz attempts.
 - Public calculation endpoints for all six simulators and authenticated scenario CRUD, learning progress, and quiz-attempt endpoints.
 - Search, simulator filters, and date/name sorting for scenario history.
-- Eight searchable learning courses covering 70 modules, with individual lesson checks, previous/next navigation, and one four-question course-end assessment per course. The 32 assessment questions include multiple-choice, true/false, scenario, and calculation formats with explanations; authenticated scores are recomputed by the API. The book and official-resource library is searchable, and reading status and learning progress are tracked.
+- Eight searchable learning courses covering 70 topic-specific modules, with individual lesson checks, previous/next navigation, and one four-question course-end assessment per course. The 32 assessment questions include multiple-choice, true/false, scenario, and calculation formats with explanations; authenticated scores are recomputed by the API. Supplementary lesson material and checks live in `shared/supplementalLessons.js` instead of repeating a generic course paragraph. The book and official-resource library is searchable, and reading status and learning progress are tracked.
 - Light, dark, and system display themes, a getting-started checklist, and resettable simulator inputs.
 
 ## Architecture
@@ -48,7 +48,7 @@ flowchart LR
   DB --> LEARN[Learning progress and quiz attempts]
 ```
 
-`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` supplies lesson-check answers and `shared/courseAssessments.js` supplies course assessment keys to the API, so signed-in scores are recomputed server-side. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
+`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` assembles each course from its core lessons and the topic-specific `shared/supplementalLessons.js` content. Lesson checks and `shared/courseAssessments.js` supply assessment keys to the API, so signed-in scores are recomputed server-side. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
 
 ## API
 

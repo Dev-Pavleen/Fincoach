@@ -19,6 +19,12 @@ test('learning library covers the eight courses and complete topic breadth', () 
       assert.ok(Number.isInteger(lesson.answer) && lesson.answer >= 0 && lesson.answer < lesson.options.length);
       assert.ok(lesson.why && lesson.activity && lesson.simulator);
     }
+    const supplementary = course.modules.slice(3);
+    assert.equal(new Set(supplementary.map((module) => module.lesson.explanation)).size, supplementary.length, `${course.title} repeats supplementary explanations`);
+    assert.equal(new Set(supplementary.map((module) => module.lesson.example)).size, supplementary.length, `${course.title} repeats supplementary examples`);
+    assert.equal(new Set(supplementary.map((module) => module.lesson.question)).size, supplementary.length, `${course.title} repeats supplementary checks`);
+    assert.equal(new Set(supplementary.map((module) => module.lesson.keyTerms.join('|'))).size, supplementary.length, `${course.title} repeats supplementary key terms`);
+    assert.ok(new Set(supplementary.map((module) => module.lesson.answer)).size >= 2, `${course.title} always marks the same answer position as correct`);
   });
   assert.ok(courses.reduce((total, course) => total + course.modules.length, 0) >= 67);
 });
