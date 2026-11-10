@@ -20,7 +20,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs the API/calculation suite and the client interaction suite. The client tests exercise registration, login, password visibility, session restoration, profile updates and account creation date, real progress data in Settings, recovery from malformed browser storage, theme persistence, correct-quiz progress persistence across reloads, every lesson-module link, and a baseline-to-variant Decision Replay through the UI, including saving its version history. They also cover My progress links and the Student workspace return-to-Overview control. The production build compiles the client and prepares the Vercel static assets.
+`npm test` runs the API/calculation suite and the client interaction suite. The API tests cover registration, duplicate accounts, password hashing, login, persistent sessions, profile and password changes, password-confirmed account deletion and owned-data cleanup, simulator validation, owner checks, and hosted configuration errors. The client tests exercise registration, login, password visibility, session restoration, profile updates and account creation date, real progress data in Settings, recovery from malformed browser storage, theme persistence, correct-quiz progress persistence across reloads, every lesson-module link, and a baseline-to-variant Decision Replay through the UI, including saving its version history. They also cover My progress links and the Student workspace return-to-Overview control. The production build compiles the client and prepares the Vercel static assets.
 
 ### Latest verification (11 November 2026)
 

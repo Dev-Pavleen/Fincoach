@@ -89,6 +89,35 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(me.response.status, 200);
   assert.equal(me.data.user.id, registered.data.user.id);
 
+  const profileUpdate = await request('/auth/profile', {
+    method: 'PATCH', cookie: login.cookie,
+    body: { name: 'Student One Updated', email: 'one-updated@example.test' },
+  });
+  assert.equal(profileUpdate.response.status, 200);
+  assert.equal(profileUpdate.data.user.name, 'Student One Updated');
+  assert.equal(profileUpdate.data.user.email, 'one-updated@example.test');
+  const refreshedProfile = await request('/auth/me', { cookie: login.cookie });
+  assert.equal(refreshedProfile.data.user.name, 'Student One Updated');
+
+  const rejectedPasswordChange = await request('/auth/password', {
+    method: 'PATCH', cookie: login.cookie,
+    body: { currentPassword: 'wrongpass123', newPassword: 'secureNew456' },
+  });
+  assert.equal(rejectedPasswordChange.response.status, 401);
+  const passwordChange = await request('/auth/password', {
+    method: 'PATCH', cookie: login.cookie,
+    body: { currentPassword: 'learning123', newPassword: 'secureNew456' },
+  });
+  assert.equal(passwordChange.response.status, 200);
+  const oldPasswordLogin = await request('/auth/login', {
+    method: 'POST', body: { email: 'one-updated@example.test', password: 'learning123' },
+  });
+  assert.equal(oldPasswordLogin.response.status, 401);
+  const newPasswordLogin = await request('/auth/login', {
+    method: 'POST', body: { email: 'one-updated@example.test', password: 'secureNew456' },
+  });
+  assert.equal(newPasswordLogin.response.status, 200);
+
   const saved = await request('/simulations', {
     method: 'POST', cookie: login.cookie,
     body: { type: 'investment', title: 'Practice', inputs: { principal: 1000, years: 2, rate: 5 } },
@@ -189,6 +218,24 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(logout.response.status, 204);
   const signedOut = await request('/simulations', { cookie: logout.cookie });
   assert.equal(signedOut.response.status, 401);
+
+  const rejectedDeletion = await request('/auth/account', {
+    method: 'DELETE', cookie: newPasswordLogin.cookie,
+    body: { currentPassword: 'wrongpass123' },
+  });
+  assert.equal(rejectedDeletion.response.status, 401);
+  const deletedAccount = await request('/auth/account', {
+    method: 'DELETE', cookie: newPasswordLogin.cookie,
+    body: { currentPassword: 'secureNew456' },
+  });
+  assert.equal(deletedAccount.response.status, 204);
+  const deletedAccountSession = await request('/auth/me', { cookie: newPasswordLogin.cookie });
+  assert.equal(deletedAccountSession.response.status, 401);
+  const dataAfterDeletion = JSON.parse(await readFile(process.env.LOCAL_DATA_FILE, 'utf8'));
+  assert.deepEqual(dataAfterDeletion.users.map((user) => user.email), ['two@example.test']);
+  assert.ok(dataAfterDeletion.simulations.every((record) => record.userId !== registered.data.user.id));
+  assert.ok(dataAfterDeletion.comparisons.every((record) => record.userId !== registered.data.user.id));
+  assert.ok(dataAfterDeletion.learningProgress.every((record) => record.userId !== registered.data.user.id));
 });
 
 test('all public simulators calculate in hosted mode without requiring MongoDB', async () => {
