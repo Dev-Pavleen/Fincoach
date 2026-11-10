@@ -352,7 +352,7 @@ function App() {
   return <div className="app-shell">
     <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
       <div className="brand"><div className="brand-mark"><BadgeIndianRupee size={20} /></div><div><strong>fincoach</strong><span>learn by trying</span></div><button className="mobile-close icon-button" onClick={() => setMobileOpen(false)} aria-label="Close navigation"><X size={18} /></button></div>
-      <div className="workspace-switch"><div className="avatar">S</div><div><strong>Student workspace</strong><span>Personal learning</span></div><ChevronDown size={15} /></div>
+      <button className="workspace-switch" type="button" onClick={() => chooseSection('dashboard')} aria-label="Open Student workspace overview"><div className="avatar">S</div><div><strong>Student workspace</strong><span>Personal learning</span></div><ChevronDown size={15} /></button>
       <nav aria-label="Main navigation">{nav.map((group) => <div className="nav-group" key={group.label}><div className="nav-label">{group.label}</div>{group.items.map(({ id, label, icon: Icon }) => <button className={`nav-item ${section === id ? 'nav-active' : ''}`} key={id} onClick={() => chooseSection(id)}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{id === 'replay' && (scenarioA || scenarioB) && <span className="nav-dot" />}</button>)}</div>)}</nav>
       <div className="sidebar-spacer" />
       <div className="sidebar-tip"><div className="tip-icon"><Sparkles size={16} /></div><strong>Small steps, clearer choices.</strong><p>Every simulation is a safe place to learn. No real money involved.</p><button onClick={() => chooseSection('learn')}>Explore the guide <ArrowRight size={13} /></button></div>
@@ -631,6 +631,12 @@ function Learn({ initialTarget, completedLessons, quizAttempts, submitQuizAttemp
   const selectedIndex = selectedCourse?.modules.findIndex((item) => item.id === openLesson) ?? -1;
   const selectedLesson = selectedCourse?.modules[selectedIndex]?.lesson;
   const openCourseLesson=(courseId,lessonId)=>{const target={courseId,lessonId};setResumeTarget(target);localStorage.setItem('fincoach-last-lesson',JSON.stringify(target));setOpenCourse(courseId);setOpenLesson(lessonId);};
+  useEffect(()=>{
+    setOpenCourse(initialTarget?.courseId ?? null);
+    setOpenLesson(initialTarget?.lessonId ?? null);
+    setOpenAssessment(null);
+    if(initialTarget) setResumeTarget(initialTarget);
+  },[initialTarget]);
   useEffect(()=>{if(initialTarget?.courseId&&initialTarget?.lessonId){localStorage.setItem('fincoach-last-lesson',JSON.stringify(initialTarget));}},[initialTarget]);
   const resumeCourse=()=>{if(resumeTarget)openCourseLesson(resumeTarget.courseId,resumeTarget.lessonId);};
   const resumeCourseInfo=courses.find((course)=>course.id===resumeTarget?.courseId);
