@@ -10,7 +10,7 @@
     "dev:server": "npm --workspace server run dev",
     "build": "npm --workspace client run build && node scripts/prepare-vercel.mjs",
     "start": "npm --workspace server run start",
-    "test": "npm --workspace server test"
+    "test": "npm --workspace server test && npm --workspace client test"
   },
   "dependencies": {
     "serverless-http": "^4.0.0"

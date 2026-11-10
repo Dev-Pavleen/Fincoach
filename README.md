@@ -20,6 +20,8 @@ npm test
 npm run build
 ```
 
+`npm test` runs the API/calculation suite and the client interaction suite. The client tests exercise course selection and open all 70 lesson modules through the Learn interface, the My progress links, and the Student workspace return-to-Overview control. The production build compiles the client and prepares the Vercel static assets.
+
 ## What is included
 
 - Six responsive simulators with input validation, charts, and formula/assumption breakdowns, including goal-date savings estimates and save-first versus financing cost comparisons.
