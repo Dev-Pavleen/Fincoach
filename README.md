@@ -82,6 +82,8 @@ flowchart LR
 
 API errors return a safe message and, where relevant, a field name. The API only returns records scoped by the authenticated owner. Authenticated history is stored in MongoDB; guest history remains in that browser's local storage.
 
+Registration and login are limited to 10 requests per 15 minutes for each client IP and route. The counter is held in process memory, so separate serverless instances do not share it; enable the hosting provider's edge/WAF rate limiting for stronger production-wide enforcement.
+
 The Learn page links to official education material from RBI, SEBI, NPCI, and the Income Tax Department. Links open the publisher's page; tax rules and product terms should be verified for the relevant date and personal circumstances.
 
 ## Calculation assumptions

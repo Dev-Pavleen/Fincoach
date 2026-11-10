@@ -8,6 +8,7 @@ import { books, courses } from '../../shared/learningContent.js';
 import { assessmentById } from '../../shared/courseAssessments.js';
 import { appendComparisonVersion, connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findComparison, findScenario, getLearningProgress, hasMongoConnection, listComparisons, listScenarios, recordQuizAttempt, renameComparison, renameScenario, saveLearningProgress, saveReadingList } from './dataStore.js';
 import { registerAuthRoutes, requireAuth } from './auth.js';
+import { createAuthRateLimiter } from './rateLimit.js';
 
 const supportedTypes = ['investment', 'loan', 'credit-card', 'budget', 'savings-goal', 'buy-vs-save'];
 const isHostedFunction = () => process.env.FINCOACH_HOSTED === 'true' || process.env.VERCEL === '1' || process.env.NETLIFY === 'true';
@@ -204,6 +205,7 @@ router.delete('/comparisons/:id', requireAuth, async (req, res) => {
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
+  if (isHostedFunction()) app.set('trust proxy', 1);
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -214,6 +216,7 @@ export function createApp() {
   app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173', credentials: true }));
   app.use(express.json({ limit: '32kb' }));
   app.use(cookieParser());
+  app.use('/api/auth', createAuthRateLimiter());
   app.use('/api', async (req, res, next) => {
     if (!isHostedFunction()) return next();
     const publicRequest = (req.method === 'GET' && req.path === '/health')
