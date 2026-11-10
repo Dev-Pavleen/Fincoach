@@ -76,6 +76,13 @@ export function investmentValueAt(result, elapsedYears) {
   return balance;
 }
 
+export function alignReplayRows(leftRows, rightRows, valueKey) {
+  const left = new Map(leftRows.map((row) => [row.period, row[valueKey]]));
+  const right = new Map(rightRows.map((row) => [row.period, row[valueKey]]));
+  const periods = [...new Set([...left.keys(), ...right.keys()])];
+  return periods.map((period) => ({ period, A: left.get(period), B: right.get(period) }));
+}
+
 export function calculateLoan(input) {
   const principal = positive(input.principal, 'principal', 'Loan amount');
   const annualRate = bounded(input.rate, 'rate', 'Annual interest rate', 0, 100, true);

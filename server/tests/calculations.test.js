@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculate, calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal, investmentValueAt } from '../../shared/calculations.js';
+import { alignReplayRows, calculate, calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal, investmentValueAt } from '../../shared/calculations.js';
 
 test('investment uses the disclosed compound growth formula', () => {
   const result = calculateInvestment({ principal: 20000, years: 5, rate: 8, frequency: 1 });
@@ -106,6 +106,14 @@ test('savings projections count only month-end deposits on or before the target 
   assert.equal(result.contributionPeriodsUntilTarget, expectedPeriods);
   assert.equal(result.projectedAtTarget, 1000 + expectedPeriods * 100);
   assert.equal(result.requiredMonthlyContribution, expectedPeriods ? 9000 / expectedPeriods : null);
+});
+
+test('replay chart rows match by period instead of decimated array position', () => {
+  const left = [{ period: 'Today', balance: 1000 }, { period: 'Month 1', balance: 1100 }, { period: 'Month 2', balance: 1200 }, { period: 'Month 4', balance: 1400 }];
+  const right = [{ period: 'Today', balance: 2000 }, { period: 'Month 1', balance: 2100 }, { period: 'Month 2', balance: 2200 }, { period: 'Month 3', balance: 2300 }, { period: 'Month 4', balance: 2400 }];
+  const aligned = alignReplayRows(left, right, 'balance');
+  assert.deepEqual(aligned.find((item) => item.period === 'Month 2'), { period: 'Month 2', A: 1200, B: 2200 });
+  assert.deepEqual(aligned.find((item) => item.period === 'Month 3'), { period: 'Month 3', A: undefined, B: 2300 });
 });
 
 test('buy-versus-save comparison calculates time, fees, and financed costs', () => {
