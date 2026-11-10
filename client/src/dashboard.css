@@ -45,6 +45,11 @@
 .dashboard-insight > p { margin: 0; color: #344239; font-size: 13px; line-height: 1.65; }
 .dashboard-insight > small,.dashboard-insight-empty { color: #78847c; font-size: 10px; line-height: 1.5; }
 .dashboard-insight-empty { padding: 7px 0; }
+.simulation-feedback { flex-basis: 100%; color: #66766b; font-size: 10px; line-height: 1.45; }
+.progress-first-step { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; padding: 11px 12px; border: 1px solid #e6ebe6; border-radius: 9px; background: #f7faf7; color: #68766d; font-size: 10px; line-height: 1.5; }
+.progress-first-step .text-link,.progress-course-row .text-link { flex: 0 0 auto; white-space: nowrap; }
+.replay-badge-action { border: 0; cursor: pointer; font: inherit; }
+.replay-badge-action:hover { filter: brightness(.97); }
 .dashboard-activity-list { display: grid; gap: 8px; }
 .dashboard-activity-list > article { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #edf0ed; }
 .dashboard-activity-mark { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 9px; background: #edf5ef; color: #39805a; }
@@ -57,6 +62,8 @@ html[data-theme="dark"] .dashboard-tools,html[data-theme="dark"] .dashboard-insi
 html[data-theme="dark"] .dashboard-insight > p { color: #e3ebe5; }
 html[data-theme="dark"] .dashboard-tool-list > button { border-color: #304037; }
 html[data-theme="dark"] .dashboard-tool-list > button > span { background: #233c2d; color: #92c8a5; }
+html[data-theme="dark"] .simulation-feedback { color: #b2bdb5; }
+html[data-theme="dark"] .progress-first-step { border-color: #304037; background: #202c24; color: #c4cec7; }
 html[data-theme="dark"] .dashboard-learning-strip > article > small,html[data-theme="dark"] .dashboard-activity-list small,html[data-theme="dark"] .dashboard-activity-empty { color: #b2bdb5; }
 html[data-theme="dark"] .dashboard-activity-list > article { border-color: #304037; }
 @media (prefers-color-scheme: dark) {
@@ -65,11 +72,14 @@ html[data-theme="dark"] .dashboard-activity-list > article { border-color: #3040
   html[data-theme="system"] .dashboard-insight > p { color: #e3ebe5; }
   html[data-theme="system"] .dashboard-tool-list > button { border-color: #304037; }
   html[data-theme="system"] .dashboard-tool-list > button > span { background: #233c2d; color: #92c8a5; }
+  html[data-theme="system"] .simulation-feedback { color: #b2bdb5; }
+  html[data-theme="system"] .progress-first-step { border-color: #304037; background: #202c24; color: #c4cec7; }
   html[data-theme="system"] .dashboard-learning-strip > article > small,html[data-theme="system"] .dashboard-activity-list small,html[data-theme="system"] .dashboard-activity-empty { color: #b2bdb5; }
   html[data-theme="system"] .dashboard-activity-list > article { border-color: #304037; }
 }
 @media (max-width: 620px) {
   .dashboard-insights { grid-template-columns: 1fr; }
+  .progress-first-step { align-items: flex-start; flex-direction: column; }
   .dashboard-learning-strip { grid-template-columns: 1fr 1fr; }
   .dashboard-learning-strip .dashboard-next-lesson { grid-column: 1 / -1; }
 }
