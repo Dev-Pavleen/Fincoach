@@ -4,6 +4,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, Respons
 import { calculate } from '../../shared/calculations.js';
 import { courseAssessments } from '../../shared/courseAssessments.js';
 import { books, courses, resources } from './learningContent.js';
+import { migrateGuestQuizAttempts } from './progressSync.js';
 
 const formatINR = (n, decimals = 0) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: decimals, minimumFractionDigits: decimals }).format(Number(n) || 0);
 const initialInputs = {
@@ -100,7 +101,7 @@ function App() {
         if (!mounted) return;
         if (simResponse.ok) { const body = await simResponse.json(); setHistory(body.simulations.map(normalizeRemote)); }
         if (compareResponse.ok) { const body = await compareResponse.json(); setComparisons(body.comparisons.map(normalizeComparison)); }
-        if (progressResponse.ok) { const body = await progressResponse.json(); setCompletedLessons(body.progress.completedLessons || []); setQuizAttempts(body.progress.quizAttempts || []); setReadingList(body.progress.readingList || []); }
+        if (progressResponse.ok) { const body = await progressResponse.json(); setCompletedLessons(body.progress.completedLessons || []); setQuizAttempts([...(body.progress.quizAttempts || []), ...safeReadKey('fincoach-pending-quiz-attempts', [])]); setReadingList(body.progress.readingList || []); }
       } catch { /* A guest can keep using the local learning experience while offline. */ }
     };
     restoreAccount();
@@ -196,25 +197,38 @@ function App() {
         throw new Error(response.status >= 500 ? 'Account sign-in is temporarily unavailable. Please try again later.' : body.error || 'Please check your details and try again.');
       }
       if (!body.user) throw new Error('We couldn’t complete sign-in. Please try again.');
+      if (authMode === 'register' && quizAttempts.length) {
+        const pending = safeReadKey('fincoach-pending-quiz-attempts', []);
+        localStorage.setItem('fincoach-pending-quiz-attempts', JSON.stringify([...new Map([...pending, ...quizAttempts].map((item) => [item.attemptId, item])).values()]));
+      }
       setUser(body.user);
-      const [list, compareList, progressResponse] = await Promise.all([fetch('/api/simulations', { credentials: 'include' }), fetch('/api/comparisons', { credentials: 'include' }), fetch('/api/learning/progress', { credentials: 'include' })]);
-      if (list.ok) { const saved = await list.json(); setHistory(saved.simulations.map(normalizeRemote)); }
-      if (compareList.ok) { const saved = await compareList.json(); setComparisons(saved.comparisons.map(normalizeComparison)); }
-      if (progressResponse.ok) {
+      const refreshResults = await Promise.allSettled([fetch('/api/simulations', { credentials: 'include' }), fetch('/api/comparisons', { credentials: 'include' }), fetch('/api/learning/progress', { credentials: 'include' })]);
+      const [listResult, compareResult, progressResult] = refreshResults;
+      const list = listResult.status === 'fulfilled' ? listResult.value : null;
+      const compareList = compareResult.status === 'fulfilled' ? compareResult.value : null;
+      const progressResponse = progressResult.status === 'fulfilled' ? progressResult.value : null;
+      let accountDataNeedsRefresh = refreshResults.some((item) => item.status === 'rejected');
+      if (list?.ok) { const saved = await list.json(); setHistory(saved.simulations.map(normalizeRemote)); } else accountDataNeedsRefresh = true;
+      if (compareList?.ok) { const saved = await compareList.json(); setComparisons(saved.comparisons.map(normalizeComparison)); } else accountDataNeedsRefresh = true;
+      if (progressResponse?.ok) {
         const saved = await progressResponse.json();
         const accountLessons = saved.progress.completedLessons || [];
         const merged = authMode === 'register' ? [...new Set([...accountLessons, ...completedLessons])] : accountLessons;
         setCompletedLessons(merged);
         const accountAttempts = saved.progress.quizAttempts || [];
-        const localAttempts = authMode === 'register' ? quizAttempts : [];
+        const pendingAttempts = safeReadKey('fincoach-pending-quiz-attempts', []);
+        const localAttempts = authMode === 'register' ? [...quizAttempts, ...pendingAttempts] : pendingAttempts;
         const accountReading = saved.progress.readingList || [];
         const localReading = authMode === 'register' ? readingList : [];
         if (authMode === 'register' && merged.length !== accountLessons.length) {
           await fetch('/api/learning/progress', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ completedLessons: merged }) });
         }
-        if (authMode === 'register') {
-          const migrated = await Promise.all(localAttempts.map(async(item)=>{try{const response=await fetch('/api/learning/attempts',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({attemptId:item.attemptId,lessonId:item.lessonId,selectedAnswer:item.selectedAnswer})});if(!response.ok)return null;return (await response.json()).attempt;}catch{return null;}}));
-          setQuizAttempts([...accountAttempts,...migrated.filter(Boolean).filter((item)=>!accountAttempts.some((existing)=>existing.attemptId===item.attemptId))]);
+        if (localAttempts.length) {
+          const { migrated, failed } = await migrateGuestQuizAttempts(localAttempts);
+          localStorage.setItem('fincoach-pending-quiz-attempts', JSON.stringify(failed));
+          const mergedAttempts = [...accountAttempts, ...migrated, ...failed];
+          setQuizAttempts([...new Map(mergedAttempts.map((item) => [item.attemptId, item])).values()]);
+          if (failed.length) setToast('Some quiz attempts are waiting to sync; they remain saved in this browser.');
         } else setQuizAttempts(accountAttempts);
         if (authMode === 'register') {
           const mergedReading = [...accountReading];
@@ -222,8 +236,12 @@ function App() {
           setReadingList(mergedReading);
           if (mergedReading.length) await fetch('/api/learning/reading-list',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:mergedReading})});
         } else setReadingList(accountReading);
+      } else {
+        accountDataNeedsRefresh = true;
+        setQuizAttempts([...quizAttempts, ...safeReadKey('fincoach-pending-quiz-attempts', [])]);
       }
-      setAccountOpen(false); setToast(authMode === 'register' ? 'Your learning account is ready' : `Welcome back, ${body.user.name}`);
+      setAccountOpen(false);
+      setToast(accountDataNeedsRefresh ? 'Signed in; some account data could not refresh yet.' : authMode === 'register' ? 'Your learning account is ready' : `Welcome back, ${body.user.name}`);
     } catch (caught) {
       if (caught instanceof TypeError) {
         setAuthError('We couldn’t connect just now. Check your internet connection and try again.');
