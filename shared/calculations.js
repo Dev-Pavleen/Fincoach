@@ -210,9 +210,7 @@ export function calculateSavingsGoal(input) {
   const growthFactor = (1 + monthlyRate) ** contributionPeriodsUntilTarget;
   const annuityFactor = monthlyRate === 0 ? contributionPeriodsUntilTarget : contributionPeriodsUntilTarget ? (growthFactor - 1) / monthlyRate : 0;
   const requiredMonthlyContribution = targetReached ? 0 : annuityFactor ? Math.max(0, (target - currentSavings * growthFactor) / annuityFactor) : null;
-  const completionDate = estimatedMonths === null
-    ? null
-    : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + estimatedMonths, 0)).toISOString().slice(0, 10);
+  const completionDate = estimatedMonths === null ? null : monthEndAfterPeriods(todayUtc, estimatedMonths);
   const chart = schedule.length > 80
     ? schedule.filter((_, index) => index === 0 || index === schedule.length - 1 || index % Math.ceil(schedule.length / 80) === 0)
     : schedule;
@@ -223,6 +221,23 @@ export function calculateSavingsGoal(input) {
     completionDate, schedule, chart,
     formula: 'Monthly balance = previous balance × (1 + annual rate ÷ 12) + end-of-month contribution. The target-date projection includes deposits only when a month end falls on or before the selected date.',
   };
+}
+
+export function monthEndAfterPeriods(startDate, periods) {
+  if (!Number.isInteger(periods) || periods < 0 || periods > 600) throw new RangeError('Periods must be a whole number from 0 to 600.');
+  const start = startDate instanceof Date ? startDate : new Date(startDate);
+  if (Number.isNaN(start.getTime())) throw new TypeError('Start date must be valid.');
+  const startUtc = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  if (periods === 0) return new Date(startUtc).toISOString().slice(0, 10);
+
+  let eligiblePeriods = 0;
+  for (let offset = 0; offset <= 600; offset += 1) {
+    const monthEnd = Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + offset + 1, 0);
+    if (monthEnd <= startUtc) continue;
+    eligiblePeriods += 1;
+    if (eligiblePeriods === periods) return new Date(monthEnd).toISOString().slice(0, 10);
+  }
+  throw new RangeError('Could not find the requested month-end period.');
 }
 
 export function calculateBuyVsSave(input) {

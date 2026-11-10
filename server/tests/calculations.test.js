@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { alignReplayRows, calculate, calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal, investmentValueAt } from '../../shared/calculations.js';
+import { alignReplayRows, calculate, calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal, investmentValueAt, monthEndAfterPeriods } from '../../shared/calculations.js';
 
 test('investment uses the disclosed compound growth formula', () => {
   const result = calculateInvestment({ principal: 20000, years: 5, rate: 8, frequency: 1 });
@@ -90,9 +90,17 @@ test('savings goal estimates required monthly contributions and progress', () =>
   assert.equal(result.targetReachedByDate, false);
   assert.equal(result.requiredMonthlyContribution, 1000);
   const now = new Date();
-  const expectedCompletion = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + result.estimatedMonths, 0)).toISOString().slice(0, 10);
+  const expectedCompletion = monthEndAfterPeriods(now, result.estimatedMonths);
   assert.equal(result.completionDate, expectedCompletion, 'completion date should match the month-end deposit schedule');
   assert.throws(() => calculateSavingsGoal({ target: 1000, currentSavings: 0, monthlyContribution: 100, targetDate: '2000-01-01' }), (error) => error.field === 'targetDate');
+});
+
+test('savings completion date counts eligible month ends when starting on a month end', () => {
+  assert.equal(monthEndAfterPeriods(new Date('2026-07-31T00:00:00.000Z'), 0), '2026-07-31');
+  assert.equal(monthEndAfterPeriods(new Date('2026-07-31T00:00:00.000Z'), 1), '2026-08-31');
+  assert.equal(monthEndAfterPeriods(new Date('2026-07-31T00:00:00.000Z'), 2), '2026-09-30');
+  assert.equal(monthEndAfterPeriods(new Date('2026-07-30T00:00:00.000Z'), 1), '2026-07-31');
+  assert.throws(() => monthEndAfterPeriods(new Date('invalid'), 1), /valid/i);
 });
 
 test('savings projections count only month-end deposits on or before the target date', () => {
