@@ -86,6 +86,9 @@ test('savings goal estimates required monthly contributions and progress', () =>
   assert.equal(result.projectedAtTarget, 6000);
   assert.equal(result.targetReachedByDate, false);
   assert.equal(result.requiredMonthlyContribution, 1000);
+  const now = new Date();
+  const expectedCompletion = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + result.estimatedMonths, 0)).toISOString().slice(0, 10);
+  assert.equal(result.completionDate, expectedCompletion, 'completion date should match the month-end deposit schedule');
   assert.throws(() => calculateSavingsGoal({ target: 1000, currentSavings: 0, monthlyContribution: 100, targetDate: '2000-01-01' }), (error) => error.field === 'targetDate');
 });
 

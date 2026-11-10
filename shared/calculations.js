@@ -188,7 +188,9 @@ export function calculateSavingsGoal(input) {
   const growthFactor = (1 + monthlyRate) ** contributionPeriodsUntilTarget;
   const annuityFactor = monthlyRate === 0 ? contributionPeriodsUntilTarget : contributionPeriodsUntilTarget ? (growthFactor - 1) / monthlyRate : 0;
   const requiredMonthlyContribution = targetReached ? 0 : annuityFactor ? Math.max(0, (target - currentSavings * growthFactor) / annuityFactor) : null;
-  const completionDate = estimatedMonths === null ? null : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + estimatedMonths, 1)).toISOString().slice(0, 10);
+  const completionDate = estimatedMonths === null
+    ? null
+    : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + estimatedMonths, 0)).toISOString().slice(0, 10);
   const chart = schedule.length > 80
     ? schedule.filter((_, index) => index === 0 || index === schedule.length - 1 || index % Math.ceil(schedule.length / 80) === 0)
     : schedule;
