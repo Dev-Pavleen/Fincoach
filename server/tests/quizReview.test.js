@@ -22,3 +22,13 @@ test('saved lesson checks can be reviewed, and missing content is handled', () =
   assert.ok(review[0].explanation);
   assert.deepEqual(getAttemptReview({ lessonId: 'removed.lesson', selectedAnswer: 0 }), []);
 });
+
+test('saved attempts use their immutable question snapshot after course content changes', () => {
+  const review = getAttemptReview({
+    kind: 'course-assessment',
+    assessmentId: 'personal-finance-review-v1',
+    answers: [1],
+    review: [{ prompt: 'Question as asked at submission', options: ['Old correct', 'Selected'], correctIndex: 0, explanation: 'Original explanation' }],
+  });
+  assert.deepEqual(review, [{ prompt: 'Question as asked at submission', options: ['Old correct', 'Selected'], correctIndex: 0, selectedIndex: 1, explanation: 'Original explanation' }]);
+});

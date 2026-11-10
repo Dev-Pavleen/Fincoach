@@ -75,7 +75,14 @@ router.post('/learning/attempts', requireAuth, async (req, res) => {
   const lesson = courses.flatMap((course) => course.modules).map((item) => item.lesson).find((item) => item.id === parsed.data.lessonId);
   if (!lesson || parsed.data.selectedAnswer >= lesson.options.length) return res.status(404).json({ error: 'Quiz question not found.' });
   const isCorrect = parsed.data.selectedAnswer === lesson.answer;
-  const attempt = { ...parsed.data, isCorrect, score: isCorrect ? 1 : 0, total: 1, createdAt: new Date().toISOString() };
+  const attempt = {
+    ...parsed.data,
+    isCorrect,
+    score: isCorrect ? 1 : 0,
+    total: 1,
+    review: [{ prompt: lesson.question, options: [...lesson.options], correctIndex: lesson.answer, explanation: lesson.why }],
+    createdAt: new Date().toISOString(),
+  };
   const stored = await recordQuizAttempt(req.userId, attempt);
   res.status(stored.duplicate ? 200 : 201).json({ attempt: stored.attempt, duplicate: stored.duplicate });
 });
@@ -98,6 +105,7 @@ router.post('/learning/assessments/:assessmentId/attempts', requireAuth, async (
     total: assessment.questions.length,
     percentage: Math.round((score / assessment.questions.length) * 100),
     isCorrect: score === assessment.questions.length,
+    review: assessment.questions.map((question) => ({ prompt: question.prompt, options: [...question.options], correctIndex: question.answer, explanation: question.explanation })),
     createdAt: new Date().toISOString(),
   };
   const stored = await recordQuizAttempt(req.userId, attempt);

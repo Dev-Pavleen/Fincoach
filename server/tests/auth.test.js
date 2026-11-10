@@ -112,6 +112,9 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(wrongAttempt.response.status, 201);
   assert.equal(wrongAttempt.data.attempt.isCorrect, false);
   assert.equal(wrongAttempt.data.attempt.score, 0);
+  assert.equal(wrongAttempt.data.attempt.review.length, 1);
+  assert.equal(wrongAttempt.data.attempt.review[0].correctIndex, 0);
+  assert.ok(wrongAttempt.data.attempt.review[0].explanation);
   const duplicateAttempt = await request('/learning/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: wrongAttemptId, lessonId: 'personal-finance.money-basics', selectedAnswer: 2 } });
   assert.equal(duplicateAttempt.response.status, 200);
   assert.equal(duplicateAttempt.data.duplicate, true);
@@ -122,6 +125,9 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(courseAssessment.data.attempt.score, 4);
   assert.equal(courseAssessment.data.attempt.total, 4);
   assert.equal(courseAssessment.data.attempt.percentage, 100);
+  assert.equal(courseAssessment.data.attempt.review.length, 4);
+  assert.ok(courseAssessment.data.attempt.review[0].prompt);
+  assert.ok(courseAssessment.data.attempt.review[0].options.length >= 2);
   const duplicateAssessment = await request('/learning/assessments/personal-finance-review-v1/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: '9241c4d7-7825-43a1-8d59-071d073623d2', answers: [2, 1, 0, 2] } });
   assert.equal(duplicateAssessment.response.status, 200);
   assert.equal(duplicateAssessment.data.duplicate, true);
