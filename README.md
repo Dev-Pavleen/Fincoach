@@ -24,7 +24,7 @@ npm run build
 
 ### Latest verification (11 November 2026)
 
-- Last full suite pass: 29 server/API and calculation tests, plus 13 client interaction tests (42 total). Current client suite passes all 14 tests, including navigation for all 70 lessons, the Student workspace, and guest progress migration; production build passes. The server suite could not bind its local test port in this restricted run (`EACCES`).
+- `npm test`: passed — 29 server/API and calculation tests plus 14 client interaction tests (43 total), including navigation through all 70 lessons, the Student workspace, and guest progress migration.
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
 - Netlify function smoke check: its simulator endpoint returned the expected investment result, and an esbuild CommonJS bundle check resolved the function dependencies successfully.
 - Account persistence was verified against the local development JSON store. A live MongoDB Atlas connection and the deployed Netlify/Vercel environment were not available for verification; hosted accounts require valid `MONGODB_URI` and `JWT_SECRET` values, as described below.
