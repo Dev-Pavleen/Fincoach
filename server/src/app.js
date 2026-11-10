@@ -4,7 +4,8 @@ import cors from 'cors';
 import path from 'node:path';
 import { z } from 'zod';
 import { calculate } from '../../shared/calculations.js';
-import { connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findScenario, getLearningProgress, hasMongoConnection, listComparisons, listScenarios, renameComparison, renameScenario, saveLearningProgress } from './dataStore.js';
+import { books, courses } from '../../shared/learningContent.js';
+import { connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findScenario, getLearningProgress, hasMongoConnection, listComparisons, listScenarios, recordQuizAttempt, renameComparison, renameScenario, saveLearningProgress, saveReadingList } from './dataStore.js';
 import { registerAuthRoutes, requireAuth } from './auth.js';
 
 const supportedTypes = ['investment', 'loan', 'credit-card', 'budget', 'savings-goal', 'buy-vs-save'];
@@ -36,7 +37,7 @@ router.post('/simulations/:type', (req, res) => {
 
 router.get('/learning/progress', requireAuth, async (req, res) => {
   const progress = await getLearningProgress(req.userId);
-  res.json({ progress: { completedLessons: progress.completedLessons || [] } });
+  res.json({ progress: { completedLessons: progress.completedLessons || [], quizAttempts: progress.quizAttempts || [], readingList: progress.readingList || [] } });
 });
 router.put('/learning/progress', requireAuth, async (req, res) => {
   const parsed = z.object({
@@ -46,6 +47,25 @@ router.put('/learning/progress', requireAuth, async (req, res) => {
   const completedLessons = [...new Set(parsed.data.completedLessons)];
   const progress = await saveLearningProgress(req.userId, completedLessons);
   res.json({ progress: { completedLessons: progress.completedLessons } });
+});
+router.post('/learning/attempts', requireAuth, async (req, res) => {
+  const parsed = z.object({ attemptId: z.string().uuid(), lessonId: z.string().trim().min(1).max(120), selectedAnswer: z.number().int().min(0).max(20) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Check the quiz answer and try again.', details: parsed.error.flatten().fieldErrors });
+  const lesson = courses.flatMap((course) => course.modules).map((item) => item.lesson).find((item) => item.id === parsed.data.lessonId);
+  if (!lesson || parsed.data.selectedAnswer >= lesson.options.length) return res.status(404).json({ error: 'Quiz question not found.' });
+  const isCorrect = parsed.data.selectedAnswer === lesson.answer;
+  const attempt = { ...parsed.data, isCorrect, score: isCorrect ? 1 : 0, total: 1, createdAt: new Date().toISOString() };
+  const stored = await recordQuizAttempt(req.userId, attempt);
+  res.status(stored.duplicate ? 200 : 201).json({ attempt: stored.attempt, duplicate: stored.duplicate });
+});
+router.put('/learning/reading-list', requireAuth, async (req, res) => {
+  const parsed = z.object({ items: z.array(z.object({ title: z.string().trim().min(1).max(200), status: z.enum(['Want to Read', 'Reading', 'Completed']) }).strict()).max(200) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Check the reading list entries.', details: parsed.error.flatten().fieldErrors });
+  const knownTitles = new Set(books.map((book) => book.title));
+  if (parsed.data.items.some((item) => !knownTitles.has(item.title))) return res.status(400).json({ error: 'That book is not in the FinCoach reading list.' });
+  const items = [...new Map(parsed.data.items.map((item) => [item.title, item])).values()];
+  const progress = await saveReadingList(req.userId, items);
+  res.json({ readingList: progress.readingList || [] });
 });
 
 router.get('/simulations', requireAuth, async (req, res) => {
@@ -131,7 +151,7 @@ export function createApp() {
   app.use('/api', async (req, res, next) => {
     if (!isHostedFunction()) return next();
     const publicRequest = (req.method === 'GET' && req.path === '/health')
-      || (req.method === 'POST' && /^\/simulations\/(investment|loan|credit-card|budget)$/.test(req.path));
+      || (req.method === 'POST' && new RegExp(`^/simulations/(?:${supportedTypes.join('|')})$`).test(req.path));
     if (publicRequest) return next();
     if (!process.env.MONGODB_URI || !process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
       return res.status(503).json({ error: 'Account service is not configured yet. Please try again later.' });

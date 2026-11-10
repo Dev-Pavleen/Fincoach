@@ -28,6 +28,8 @@ const comparisonSchema = new mongoose.Schema({
 const learningProgressSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   completedLessons: { type: [String], default: [] },
+  quizAttempts: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  readingList: { type: [mongoose.Schema.Types.Mixed], default: [] },
   schemaVersion: { type: Number, default: 1 },
 }, { timestamps: true });
 

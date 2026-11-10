@@ -117,9 +117,9 @@ export async function deleteUserAndOwnedData(id) {
 export async function getLearningProgress(userId) {
   if (hasMongoConnection()) {
     const record = await LearningProgress.findOne({ userId }).lean();
-    return record ?? { completedLessons: [] };
+    return record ?? { completedLessons: [], quizAttempts: [], readingList: [] };
   }
-  return copy((await readLocal()).learningProgress.find((item) => item.userId === String(userId)) || { completedLessons: [] });
+  return copy((await readLocal()).learningProgress.find((item) => item.userId === String(userId)) || { completedLessons: [], quizAttempts: [], readingList: [] });
 }
 
 export async function saveLearningProgress(userId, completedLessons) {
@@ -137,6 +137,60 @@ export async function saveLearningProgress(userId, completedLessons) {
       data.learningProgress.push(record);
     }
     record.completedLessons = completedLessons;
+    record.updatedAt = new Date().toISOString();
+    return copy(record);
+  });
+}
+
+export async function recordQuizAttempt(userId, attempt) {
+  if (hasMongoConnection()) {
+    const filter = { userId, 'quizAttempts.attemptId': { $ne: attempt.attemptId } };
+    try {
+      const updated = await LearningProgress.findOneAndUpdate(
+        filter,
+        { $push: { quizAttempts: { $each: [attempt], $slice: -500 } }, $setOnInsert: { schemaVersion: 1, completedLessons: [] } },
+        { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+      ).lean();
+      return { attempt: updated.quizAttempts.find((item) => item.attemptId === attempt.attemptId), duplicate: false };
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      const record = await LearningProgress.findOne({ userId }).lean();
+      const existing = record?.quizAttempts?.find((item) => item.attemptId === attempt.attemptId);
+      if (existing) return { attempt: existing, duplicate: true };
+      throw error;
+    }
+  }
+  return changeLocal((data) => {
+    let record = data.learningProgress.find((item) => item.userId === String(userId));
+    if (!record) {
+      record = { _id: localId(), userId: String(userId), schemaVersion: 1, completedLessons: [], quizAttempts: [], createdAt: new Date().toISOString() };
+      data.learningProgress.push(record);
+    }
+    record.quizAttempts ||= [];
+    const existing = record.quizAttempts.find((item) => item.attemptId === attempt.attemptId);
+    if (existing) return { attempt: copy(existing), duplicate: true };
+    record.quizAttempts.push(copy(attempt));
+    if (record.quizAttempts.length > 500) record.quizAttempts = record.quizAttempts.slice(-500);
+    record.updatedAt = new Date().toISOString();
+    return { attempt: copy(attempt), duplicate: false };
+  });
+}
+
+export async function saveReadingList(userId, readingList) {
+  if (hasMongoConnection()) {
+    return LearningProgress.findOneAndUpdate(
+      { userId },
+      { $set: { readingList }, $setOnInsert: { schemaVersion: 1, completedLessons: [], quizAttempts: [] } },
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+    ).lean();
+  }
+  return changeLocal((data) => {
+    let record = data.learningProgress.find((item) => item.userId === String(userId));
+    if (!record) {
+      record = { _id: localId(), userId: String(userId), schemaVersion: 1, completedLessons: [], quizAttempts: [], readingList: [], createdAt: new Date().toISOString() };
+      data.learningProgress.push(record);
+    }
+    record.readingList = copy(readingList);
     record.updatedAt = new Date().toISOString();
     return copy(record);
   });

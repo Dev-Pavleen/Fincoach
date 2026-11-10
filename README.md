@@ -26,10 +26,10 @@ npm run build
 - Browser-persisted scenarios and immutable, reopenable Decision Replay comparisons; account users can store comparisons on the server.
 - Optional account registration and login using bcrypt password hashes and an HTTP-only session cookie.
 - Profile editing, authenticated password changes, and password-confirmed account deletion, plus saved-scenario export and deletion controls.
-- MongoDB models for user-owned simulations and immutable comparison snapshots.
-- Public calculation endpoints and authenticated scenario CRUD endpoints.
+- MongoDB models for user-owned simulations, immutable comparison snapshots, and per-user learning progress and quiz attempts.
+- Public calculation endpoints for all six simulators and authenticated scenario CRUD, learning progress, and quiz-attempt endpoints.
 - Search, simulator filters, and date/name sorting for scenario history.
-- Four introductory financial lessons with quizzes; guest lesson progress is browser-saved and signed-in progress is stored with the account, plus FAQ and educational-use notices.
+- Eight searchable learning courses covering 70 structured modules, with knowledge checks, related simulator links, previous/next lesson navigation, a searchable book and official-resource library, reading status, and a dedicated progress view. Guest progress stays in the browser; signed-in lesson progress, server-checked quiz attempts, and reading status are stored with the account.
 - Light, dark, and system display themes, a getting-started checklist, and resettable simulator inputs.
 
 ## Architecture
@@ -39,20 +39,22 @@ flowchart LR
   UI[React client] -->|JSON| API[Express API]
   UI -->|Browser storage| LOCAL[Local scenario history]
   API --> CALC[Shared pure calculation modules]
+  UI --> EDU[Shared course and quiz content]
   API --> AUTH[HTTP-only JWT cookie]
   API --> DB[(MongoDB Atlas / Mongoose)]
   DB --> USER[Users and owned simulations]
   DB --> SNAP[Comparison snapshots]
+  DB --> LEARN[Learning progress and quiz attempts]
 ```
 
-`shared/calculations.js` is the source of truth for calculations in both client and server. The server recomputes submitted inputs before persistence; saved results include the calculation assumptions and schema version so a scenario can be explained and reproduced.
+`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` supplies the lesson quiz answer key to the API so signed-in scores are computed by the server. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
 
 ## API
 
 | Method and path | Access | Purpose |
 |---|---|---|
 | `GET /api/health` | Public | API health check |
-| `POST /api/simulations/:type` | Public | Calculate `investment`, `loan`, `credit-card`, or `budget` |
+| `POST /api/simulations/:type` | Public | Calculate `investment`, `loan`, `credit-card`, `budget`, `savings-goal`, or `buy-vs-save` |
 | `POST /api/auth/register` | Public | Create account and sign in |
 | `POST /api/auth/login` | Public | Sign in |
 | `POST /api/auth/logout` | Public | Clear session cookie |
@@ -65,19 +67,23 @@ flowchart LR
 | `GET /api/simulations/:id` | Signed in | Read one owned scenario |
 | `PATCH /api/simulations/:id` | Signed in | Rename one owned scenario |
 | `DELETE /api/simulations/:id` | Signed in | Delete one owned scenario |
-| `GET /api/learning/progress` | Signed in | Read the user's completed lessons |
+| `GET /api/learning/progress` | Signed in | Read the user's completed lessons and quiz attempts |
 | `PUT /api/learning/progress` | Signed in | Replace the user's validated completed lesson list |
+| `POST /api/learning/attempts` | Signed in | Server-check and save one idempotent lesson quiz attempt |
+| `PUT /api/learning/reading-list` | Signed in | Save validated book reading statuses for the account |
 | `POST /api/comparisons` | Signed in | Save immutable comparison snapshots |
 | `PATCH /api/comparisons/:id` | Signed in | Rename one owned comparison |
 | `DELETE /api/comparisons/:id` | Signed in | Delete one owned comparison |
 
 API errors return a safe message and, where relevant, a field name. The API only returns records scoped by the authenticated owner. Authenticated history is stored in MongoDB; guest history remains in that browser's local storage.
 
+The Learn page links to official education material from RBI, SEBI, NPCI, and the Income Tax Department. Links open the publisher's page; tax rules and product terms should be verified for the relevant date and personal circumstances.
+
 ## Calculation assumptions
 
-- Investment growth uses compound interest: `A = P × (1 + r ÷ n)^(n × t)`. Rates are user-provided assumptions, not forecasts.
+- Investment without contributions uses compound interest: `A = P × (1 + r ÷ n)^(n × t)`. With monthly contributions, the simulator converts the selected nominal compounding assumption to an effective monthly rate, accrues each month, then applies the contribution at month end. Annual contribution increases apply after each completed 12 months. Rates are user-provided assumptions, not forecasts.
 - The loan uses the standard fixed-rate EMI formula, converts nominal annual interest to a monthly rate by dividing by 12, and handles a zero-rate loan separately. Totals use unrounded values.
-- The credit-card model converts APR to a monthly rate using APR ÷ 12, adds interest before payment, uses the same payment each month, and assumes no new purchases or fees. The payment must exceed accrued interest and clear the balance within 600 months. This is not any issuer's exact minimum-payment method.
+- The credit-card model converts APR to a monthly rate using APR ÷ 12, adds optional new spending to the opening balance, applies interest before payment, and uses the same payment each month. Fees are not modeled. The payment must exceed accrued interest and clear the balance within 600 months. This is not any issuer's exact minimum-payment method.
 - The budget planner totals virtual allocations. An over-allocation is highlighted; savings rate is the savings category divided by monthly income.
 - The savings goal planner adds end-of-month contributions and monthly interest (annual rate ÷ 12), projects the balance to the target date, and solves for the contribution needed by that date. It caps projections at 50 years.
 - The purchase comparison assumes full-price financing with fixed amortized payments, separate user-entered processing fees, and no other charges. Save-first assumes no interest and monthly deposits until the purchase price is available.

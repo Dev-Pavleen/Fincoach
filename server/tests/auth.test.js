@@ -91,6 +91,11 @@ test('registration validation, account login, sessions and owner-scoped scenario
     body: { type: 'investment', title: 'Practice', inputs: { principal: 1000, years: 2, rate: 5 } },
   });
   assert.equal(saved.response.status, 201);
+  const loadedScenario = await request(`/simulations/${saved.data.simulation.id}`, { cookie: login.cookie });
+  assert.equal(loadedScenario.response.status, 200);
+  assert.ok(Math.abs(loadedScenario.data.simulation.results.finalValue - 1102.5) < 0.01);
+  const renamedScenario = await request(`/simulations/${saved.data.simulation.id}`, { method: 'PATCH', cookie: login.cookie, body: { title: 'Updated practice' } });
+  assert.equal(renamedScenario.data.simulation.title, 'Updated practice');
 
   const progressSaved = await request('/learning/progress', {
     method: 'PUT', cookie: login.cookie,
@@ -100,6 +105,30 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.deepEqual(progressSaved.data.progress.completedLessons, ['finance.basics.01', 'budgeting.plan.02']);
   const progressRead = await request('/learning/progress', { cookie: login.cookie });
   assert.deepEqual(progressRead.data.progress.completedLessons, ['finance.basics.01', 'budgeting.plan.02']);
+  const wrongAttemptId = '1485ae58-a426-4bb6-8b37-4e6dc84bcd5b';
+  const wrongAttempt = await request('/learning/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: wrongAttemptId, lessonId: 'personal-finance.money-basics', selectedAnswer: 2 } });
+  assert.equal(wrongAttempt.response.status, 201);
+  assert.equal(wrongAttempt.data.attempt.isCorrect, false);
+  assert.equal(wrongAttempt.data.attempt.score, 0);
+  const duplicateAttempt = await request('/learning/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: wrongAttemptId, lessonId: 'personal-finance.money-basics', selectedAnswer: 2 } });
+  assert.equal(duplicateAttempt.response.status, 200);
+  assert.equal(duplicateAttempt.data.duplicate, true);
+  const correctAttempt = await request('/learning/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: '774c7628-563d-41ea-8b84-bfb5d3d46ae1', lessonId: 'personal-finance.money-basics', selectedAnswer: 0 } });
+  assert.equal(correctAttempt.data.attempt.isCorrect, true);
+  const attemptHistory = await request('/learning/progress', { cookie: login.cookie });
+  assert.equal(attemptHistory.data.progress.quizAttempts.length, 2);
+  const readingSaved = await request('/learning/reading-list', { method: 'PUT', cookie: login.cookie, body: { items: [{ title: 'The Psychology of Money', status: 'Reading' }] } });
+  assert.equal(readingSaved.response.status, 200);
+  assert.deepEqual(readingSaved.data.readingList, [{ title: 'The Psychology of Money', status: 'Reading' }]);
+  const unknownBook = await request('/learning/reading-list', { method: 'PUT', cookie: login.cookie, body: { items: [{ title: 'Unknown PDF', status: 'Completed' }] } });
+  assert.equal(unknownBook.response.status, 400);
+  const comparison = await request('/comparisons', { method: 'POST', cookie: login.cookie, body: { title: 'Replay example', scenarioA: { type: 'investment', inputs: { principal: 1000, years: 2, rate: 5 } }, scenarioB: { type: 'investment', inputs: { principal: 1000, years: 2, rate: 8 } } } });
+  assert.equal(comparison.response.status, 201);
+  assert.ok(Math.abs(comparison.data.comparison.scenarioA.results.finalValue - 1102.5) < 0.01);
+  const comparisonList = await request('/comparisons', { cookie: login.cookie });
+  assert.equal(comparisonList.data.comparisons[0].id, comparison.data.comparison.id);
+  const renamedComparison = await request(`/comparisons/${comparison.data.comparison.id}`, { method: 'PATCH', cookie: login.cookie, body: { title: 'Renamed replay' } });
+  assert.equal(renamedComparison.data.comparison.title, 'Renamed replay');
 
   const secondUser = await request('/auth/register', {
     method: 'POST', body: { name: 'Student Two', email: 'two@example.test', password: 'learning456', confirmPassword: 'learning456' },
@@ -107,11 +136,41 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(secondUser.response.status, 201);
   const secondUserProgress = await request('/learning/progress', { cookie: secondUser.cookie });
   assert.deepEqual(secondUserProgress.data.progress.completedLessons, []);
+  assert.deepEqual(secondUserProgress.data.progress.quizAttempts, []);
+  assert.deepEqual(secondUserProgress.data.progress.readingList, []);
   const privateRecord = await request(`/simulations/${saved.data.simulation.id}`, { cookie: secondUser.cookie });
   assert.equal(privateRecord.response.status, 404);
+  const secondUserComparisons = await request('/comparisons', { cookie: secondUser.cookie });
+  assert.deepEqual(secondUserComparisons.data.comparisons, []);
+  const deletedComparison = await request(`/comparisons/${comparison.data.comparison.id}`, { method: 'DELETE', cookie: login.cookie });
+  assert.equal(deletedComparison.response.status, 204);
+  const deletedScenario = await request(`/simulations/${saved.data.simulation.id}`, { method: 'DELETE', cookie: login.cookie });
+  assert.equal(deletedScenario.response.status, 204);
 
   const logout = await request('/auth/logout', { method: 'POST', cookie: login.cookie });
   assert.equal(logout.response.status, 204);
   const signedOut = await request('/simulations', { cookie: logout.cookie });
   assert.equal(signedOut.response.status, 401);
+});
+
+test('all public simulators calculate in hosted mode without requiring MongoDB', async () => {
+  const previous = { hosted: process.env.FINCOACH_HOSTED, mongo: process.env.MONGODB_URI, netlify: process.env.NETLIFY, vercel: process.env.VERCEL };
+  process.env.FINCOACH_HOSTED = 'true';
+  delete process.env.MONGODB_URI;
+  process.env.NETLIFY = 'false';
+  process.env.VERCEL = '0';
+  try {
+    const targetDate = new Date();
+    targetDate.setUTCMonth(targetDate.getUTCMonth() + 6);
+    const goal = await request('/simulations/savings-goal', { method: 'POST', body: { target: 10000, currentSavings: 1000, monthlyContribution: 500, annualRate: 0, targetDate: targetDate.toISOString().slice(0, 10) } });
+    assert.equal(goal.response.status, 200);
+    assert.equal(goal.data.results.projectedAtTarget, 4000);
+    const purchase = await request('/simulations/buy-vs-save', { method: 'POST', body: { itemPrice: 12000, availableSavings: 4000, monthlySavings: 2000, cardApr: 24, loanRate: 0, months: 4, cardFee: 100, loanFee: 500 } });
+    assert.equal(purchase.response.status, 200);
+    assert.equal(purchase.data.results.options.length, 3);
+  } finally {
+    for (const [key, value] of Object.entries({ FINCOACH_HOSTED: previous.hosted, MONGODB_URI: previous.mongo, NETLIFY: previous.netlify, VERCEL: previous.vercel })) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
 });
