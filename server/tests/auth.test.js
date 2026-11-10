@@ -63,6 +63,7 @@ test('registration validation, account login, sessions and owner-scoped scenario
   });
   assert.equal(registered.response.status, 201);
   assert.equal(registered.data.user.email, 'one@example.test');
+  assert.ok(Number.isFinite(Date.parse(registered.data.user.createdAt)));
   assert.equal('passwordHash' in registered.data.user, false);
   assert.ok(registered.cookie);
 

@@ -15,7 +15,12 @@ const registration = z.object({ email: emailSchema, password: passwordSchema,
 });
 const cookieName = 'fincoach_session';
 const cookieOptions = () => ({ httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' || process.env.FINCOACH_HOSTED === 'true' || process.env.NETLIFY === 'true' || process.env.VERCEL === '1', path: '/', maxAge: 1000 * 60 * 60 * 24 * 7 });
-const safeUser = (user) => ({ id: String(user._id), name: user.name, email: user.email });
+const safeUser = (user) => ({
+  id: String(user._id),
+  name: user.name,
+  email: user.email,
+  createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+});
 
 export function requireAuth(req, res, next) {
   const token = req.cookies?.[cookieName];

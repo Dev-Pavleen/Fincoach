@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import App from './App.jsx';
 
-const account = { id: 'user-1', name: 'Demo Student', email: 'demo@example.test' };
+const account = { id: 'user-1', name: 'Demo Student', email: 'demo@example.test', createdAt: '2026-02-03T00:00:00.000Z' };
 const emptyProgress = { progress: { completedLessons: [], quizAttempts: [], readingList: [] } };
 
 function response(status, body) {
@@ -97,6 +97,7 @@ describe('account interface and session restoration', () => {
     render(<App />);
     expect(await screen.findByRole('button', { name: `Account: ${account.name}` })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(await screen.findByText('Account created 3 February 2026')).toBeTruthy();
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Updated Student' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'updated@example.test' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
