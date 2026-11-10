@@ -5,6 +5,8 @@ import { calculate } from '../../shared/calculations.js';
 import { courseAssessments } from '../../shared/courseAssessments.js';
 import { books, courses, resources } from './learningContent.js';
 import { migrateGuestQuizAttempts } from './progressSync.js';
+import { getAttemptReview } from './quizReview.js';
+import './quizReview.css';
 
 const formatINR = (n, decimals = 0) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: decimals, minimumFractionDigits: decimals }).format(Number(n) || 0);
 const initialInputs = {
@@ -624,16 +626,59 @@ function CourseLesson({lesson,completed,attempts,onAttempt,onComplete,onBack,onN
   const latest=attempts?.[0];
   return <section className="course-lesson"><button className="text-link" onClick={onBack}>← Course modules</button><div className="lesson-reading"><span className="panel-kicker">LESSON · {completed?'COMPLETED':'IN PROGRESS'}</span><p>{lesson.intro}</p><div className="lesson-objectives"><strong>Learning objectives</strong><ul>{lesson.objectives.map((objective)=><li key={objective}>{objective}</li>)}</ul></div><p>{lesson.explanation}</p><h3>Example</h3><p>{lesson.example}</p><h3>Key ideas and terms</h3><ul>{lesson.keyTerms.map((term)=><li key={term}>{term}</li>)}</ul><div className="lesson-callout"><strong>Common mistake</strong><p>{lesson.commonMistake}</p><strong>Takeaway</strong><p>{lesson.takeaway}</p><strong>Try it</strong><p>{lesson.activity}</p></div><strong className="course-question">Knowledge check: {lesson.question}</strong><div className="course-options">{lesson.options.map((option,index)=><button key={option} disabled={submitting||completed} className={choice===index?index===lesson.answer?'quiz-correct':'quiz-wrong':''} onClick={()=>answer(index)}>{option}</button>)}</div>{choice!==null&&<p className={choice===lesson.answer?'quiz-feedback-ok':'quiz-feedback'} role="status">{choice===lesson.answer?`Correct. ${lesson.why}`:'Not quite. Review the explanation and try again.'}</p>}{latest&&<p className="lesson-attempt-summary">Your last saved attempt: {latest.score}/{latest.total} · {new Date(latest.createdAt).toLocaleString()}</p>}<div className="lesson-navigation"><button className="button button-outline" disabled={!canPrevious} onClick={()=>onNavigate(-1)}>← Previous lesson</button><button className="button button-outline" onClick={onOpenSimulator}>Related simulator <ArrowRight size={14}/></button><button className="button button-outline" disabled={!canNext} onClick={()=>onNavigate(1)}>Next lesson →</button></div></div></section>;
 }
+function AttemptReview({ attempt }) {
+  const items = getAttemptReview(attempt);
+  if (!items.length) return <p className="attempt-review-unavailable">Answer details are unavailable for this saved attempt.</p>;
+  return <details className="attempt-review"><summary>Review answers and explanations</summary><div className="attempt-review-content">
+    {items.map((item, index) => <article className="attempt-review-question" key={`${attempt.attemptId}-${index}`}>
+      <strong>{items.length > 1 ? `${index + 1}. ` : ''}{item.prompt}</strong>
+      <p><b>Your answer:</b> {Number.isInteger(item.selectedIndex) ? item.options[item.selectedIndex] || 'Recorded option unavailable' : 'No answer recorded'}</p>
+      <p><b>Correct answer:</b> {item.options[item.correctIndex]}</p>
+      <p><b>Explanation:</b> {item.explanation}</p>
+    </article>)}
+  </div></details>;
+}
+
 function CourseProgress({completedLessons,quizAttempts,readingList,history,user,setSection}) {
-  const lessonIds=new Set(courses.flatMap((course)=>course.modules.map((item)=>item.lesson.id)));
-  const completedCourseLessons=completedLessons.filter((id)=>lessonIds.has(id)).length;
-  const totalLessons=lessonIds.size;
-  const correct=quizAttempts.reduce((sum,attempt)=>sum+(attempt.score||0),0);
-  const attempted=quizAttempts.length;
-  const totalQuestions=quizAttempts.reduce((sum,attempt)=>sum+(attempt.total||1),0);
-  const average=totalQuestions?Math.round(correct/totalQuestions*100):0;
-  const badges=[{label:'First lesson',earned:completedCourseLessons>=1,detail:'Complete one learning lesson'},{label:'Curious learner',earned:completedCourseLessons>=5,detail:'Complete five learning lessons'},{label:'Quiz practice',earned:attempted>=3,detail:'Save three quiz attempts'},{label:'Scenario explorer',earned:history.length>=3,detail:'Save three scenarios'}];
-  return <><div className="page-title-row"><div><div className="eyebrow">YOUR LEARNING ACTIVITY</div><h1>My progress</h1><p>{user?'Progress and quiz history saved to your account.':'Progress and quiz history saved in this browser.'}</p></div></div><div className="progress-summary-grid"><article><span>Lessons complete</span><strong>{completedCourseLessons}/{totalLessons}</strong></article><article><span>Quiz attempts</span><strong>{attempted}</strong></article><article><span>Correct answers</span><strong>{attempted?`${correct}/${totalQuestions}`:'—'}</strong></article><article><span>Average score</span><strong>{attempted?`${average}%`:'—'}</strong></article></div><section className="progress-courses"><h2>Course progress</h2>{courses.map((course)=>{const done=course.modules.filter((item)=>completedLessons.includes(item.lesson.id)).length;return <article className="progress-course-row" key={course.id}><div><strong>{course.title}</strong><span>{done} of {course.modules.length} lessons · {Math.round(done/course.modules.length*100)}%</span></div><div className="progress-track"><span style={{width:`${done/course.modules.length*100}%`}}/></div></article>;})}</section><section className="progress-courses"><h2>Achievements</h2><div className="achievement-grid">{badges.map((badge)=><article className={badge.earned?'achievement-earned':'achievement-locked'} key={badge.label}><strong>{badge.earned?'✓':'○'} {badge.label}</strong><span>{badge.detail}</span></article>)}</div></section><section className="progress-courses"><h2>Recent quiz attempts</h2>{quizAttempts.length?<div className="attempt-list">{quizAttempts.slice(0,12).map((attempt)=><article className="attempt-row" key={attempt.attemptId}><span><strong>{attempt.title||courses.flatMap((course)=>course.modules).find((item)=>item.lesson.id===attempt.lessonId)?.lesson.title||attempt.lessonId}</strong><small>{new Date(attempt.createdAt).toLocaleString()}</small></span><b>{attempt.score}/{attempt.total} · {attempt.percentage??Math.round(attempt.score/attempt.total*100)}% · {attempt.isCorrect?'Complete':'Review'}</b></article>)}</div>:<div className="history-empty"><strong>No quiz attempts yet</strong><span>Study a course and try a knowledge check to see results here.</span><button className="text-link" onClick={()=>setSection('learn')}>Browse courses →</button></div>}</section><section className="progress-courses"><h2>Reading list</h2>{readingList.length?<div className="attempt-list">{readingList.map((item)=><article className="attempt-row" key={item.title}><span><strong>{item.title}</strong><small>{books.find((book)=>book.title===item.title)?.author}</small></span><b>{item.status}</b></article>)}</div>:<div className="history-empty"><strong>No books saved yet</strong><span>Add a book to your reading list from the Learn page.</span><button className="text-link" onClick={()=>setSection('learn')}>Explore books →</button></div>}</section></>;
+  const lessonIds = new Set(courses.flatMap((course) => course.modules.map((item) => item.lesson.id)));
+  const completedCourseLessons = completedLessons.filter((id) => lessonIds.has(id)).length;
+  const totalLessons = lessonIds.size;
+  const correct = quizAttempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
+  const attempted = quizAttempts.length;
+  const totalQuestions = quizAttempts.reduce((sum, attempt) => sum + (attempt.total || 1), 0);
+  const average = totalQuestions ? Math.round(correct / totalQuestions * 100) : 0;
+  const badges = [
+    { label: 'First lesson', earned: completedCourseLessons >= 1, detail: 'Complete one learning lesson' },
+    { label: 'Curious learner', earned: completedCourseLessons >= 5, detail: 'Complete five learning lessons' },
+    { label: 'Quiz practice', earned: attempted >= 3, detail: 'Save three quiz attempts' },
+    { label: 'Scenario explorer', earned: history.length >= 3, detail: 'Save three scenarios' },
+  ];
+  return <>
+    <div className="page-title-row"><div><div className="eyebrow">YOUR LEARNING ACTIVITY</div><h1>My progress</h1><p>{user ? 'Progress and quiz history saved to your account.' : 'Progress and quiz history saved in this browser.'}</p></div></div>
+    <div className="progress-summary-grid">
+      <article><span>Lessons complete</span><strong>{completedCourseLessons}/{totalLessons}</strong></article>
+      <article><span>Quiz attempts</span><strong>{attempted}</strong></article>
+      <article><span>Correct answers</span><strong>{attempted ? `${correct}/${totalQuestions}` : '—'}</strong></article>
+      <article><span>Average score</span><strong>{attempted ? `${average}%` : '—'}</strong></article>
+    </div>
+    <section className="progress-courses"><h2>Course progress</h2>{courses.map((course) => {
+      const done = course.modules.filter((item) => completedLessons.includes(item.lesson.id)).length;
+      return <article className="progress-course-row" key={course.id}><div><strong>{course.title}</strong><span>{done} of {course.modules.length} lessons · {Math.round(done / course.modules.length * 100)}%</span></div><div className="progress-track"><span style={{ width: `${done / course.modules.length * 100}%` }}/></div></article>;
+    })}</section>
+    <section className="progress-courses"><h2>Achievements</h2><div className="achievement-grid">{badges.map((badge) => <article className={badge.earned ? 'achievement-earned' : 'achievement-locked'} key={badge.label}><strong>{badge.earned ? '✓' : '○'} {badge.label}</strong><span>{badge.detail}</span></article>)}</div></section>
+    <section className="progress-courses"><h2>Recent quiz attempts</h2>{quizAttempts.length
+      ? <div className="attempt-list">{quizAttempts.slice(0, 12).map((attempt) => <article className="attempt-row" key={attempt.attemptId}>
+        <span><strong>{attempt.title || courses.flatMap((course) => course.modules).find((item) => item.lesson.id === attempt.lessonId)?.lesson.title || attempt.lessonId}</strong><small>{new Date(attempt.createdAt).toLocaleString()}</small></span>
+        <b>{attempt.score}/{attempt.total} · {attempt.percentage ?? Math.round(attempt.score / attempt.total * 100)}% · {attempt.isCorrect ? 'Complete' : 'Review'}</b>
+        <AttemptReview attempt={attempt}/>
+      </article>)}</div>
+      : <div className="history-empty"><strong>No quiz attempts yet</strong><span>Study a course and try a knowledge check to see results here.</span><button className="text-link" onClick={() => setSection('learn')}>Browse courses →</button></div>}
+    </section>
+    <section className="progress-courses"><h2>Reading list</h2>{readingList.length
+      ? <div className="attempt-list">{readingList.map((item) => <article className="attempt-row" key={item.title}><span><strong>{item.title}</strong><small>{books.find((book) => book.title === item.title)?.author}</small></span><b>{item.status}</b></article>)}</div>
+      : <div className="history-empty"><strong>No books saved yet</strong><span>Add a book to your reading list from the Learn page.</span><button className="text-link" onClick={() => setSection('learn')}>Explore books →</button></div>}
+    </section>
+  </>;
 }
 function LessonCard({ lesson, complete, onComplete }) {
   const [choice, setChoice] = useState(null); const {n,title,icon:Icon,copy,example,question,options,answer}=lesson;
