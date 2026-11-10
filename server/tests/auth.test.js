@@ -133,6 +133,7 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(replayVersion.response.status, 201);
   assert.equal(replayVersion.data.version.versionNumber, 2);
   assert.equal(replayVersion.data.version.notes, 'Raised the return assumption for a sensitivity check.');
+  assert.deepEqual(replayVersion.data.version.changes.find((item) => item.key === 'principal'), { key: 'principal', label: 'Principal', a: 1000, b: 2000 });
   assert.ok(Math.abs(replayVersion.data.version.scenario.results.finalValue - 2332.8) < 0.02);
   assert.equal(replayVersion.data.comparison.scenarioA.inputs.principal, 1000);
   assert.equal(replayVersion.data.comparison.versions[0].scenario.inputs.rate, 8);

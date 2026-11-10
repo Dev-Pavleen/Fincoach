@@ -18,7 +18,12 @@ const fieldMessage = (error) => ({ error: error.message, field: error.field });
 const flattenInputs = (value, prefix = '') => Object.entries(value ?? {}).flatMap(([key, item]) => item && typeof item === 'object' && !Array.isArray(item) ? flattenInputs(item, `${prefix}${key}.`) : [[`${prefix}${key}`, item]]);
 const replayDifferences = (baseline, variant) => {
   const left = Object.fromEntries(flattenInputs(baseline)); const right = Object.fromEntries(flattenInputs(variant));
-  return [...new Set([...Object.keys(left), ...Object.keys(right)])].filter((key) => JSON.stringify(left[key]) !== JSON.stringify(right[key])).map((key) => ({ key, baseline: left[key] ?? null, variant: right[key] ?? null }));
+  return [...new Set([...Object.keys(left), ...Object.keys(right)])].filter((key) => JSON.stringify(left[key]) !== JSON.stringify(right[key])).map((key) => ({
+    key,
+    label: key.split('.').map((part) => part.replace(/([A-Z])/g, ' $1').replace(/^./, (character) => character.toUpperCase())).join(' · '),
+    a: left[key] ?? '—',
+    b: right[key] ?? '—',
+  }));
 };
 const comparisonView = (record) => {
   const versionRecords = record.versions?.length ? record.versions : [{ scenario: record.scenarioB, changes: replayDifferences(record.scenarioA.inputs, record.scenarioB.inputs), notes: '', createdAt: record.createdAt }];
