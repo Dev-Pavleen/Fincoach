@@ -103,15 +103,15 @@ function App() {
             ? await healthResponse.json().catch(() => null)
             : null;
           if (health?.status === 'misconfigured') {
-            throw new Error('Account setup is incomplete. Add MONGODB_URI and a JWT_SECRET of at least 32 characters in your hosting project settings, then redeploy.');
+            throw new Error('Account sign-in is not set up yet. Please contact the site owner.');
           }
           if (health?.status === 'unavailable' && health?.storage === 'mongodb') {
-            throw new Error('FinCoach cannot connect to its database. Check the MongoDB Atlas connection string, database user credentials, and Atlas network access in your hosting settings.');
+            throw new Error('Account sign-in is temporarily unavailable. Please try again later.');
           }
         }
-        throw new Error(body.error || 'The account service is temporarily unavailable. Please try again shortly.');
+        throw new Error(response.status >= 500 ? 'Account sign-in is temporarily unavailable. Please try again later.' : body.error || 'Please check your details and try again.');
       }
-      if (!body.user) throw new Error('The account service returned an incomplete response. Try again.');
+      if (!body.user) throw new Error('We couldn’t complete sign-in. Please try again.');
       setUser(body.user);
       const [list, compareList] = await Promise.all([fetch('/api/simulations', { credentials: 'include' }), fetch('/api/comparisons', { credentials: 'include' })]);
       if (list.ok) { const saved = await list.json(); setHistory(saved.simulations.map(normalizeRemote)); }
@@ -119,7 +119,7 @@ function App() {
       setAccountOpen(false); setToast(authMode === 'register' ? 'Your learning account is ready' : `Welcome back, ${body.user.name}`);
     } catch (caught) {
       if (caught instanceof TypeError) {
-        setAuthError('The account service could not be reached. Please try again shortly.');
+        setAuthError('We couldn’t connect just now. Check your internet connection and try again.');
       } else setAuthError(caught.message);
     } finally { setAuthBusy(false); }
   };
