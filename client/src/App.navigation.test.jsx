@@ -75,6 +75,7 @@ describe('learning and workspace navigation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open Student workspace overview' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Overview' }).className).toContain('nav-active'));
+    expect(screen.getByRole('heading', { name: /Good choices start with a little curiosity/ })).toBeTruthy();
   });
 
   it('recovers from malformed browser-saved learning data without breaking navigation', async () => {

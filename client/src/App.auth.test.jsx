@@ -81,6 +81,26 @@ describe('account interface and session restoration', () => {
     expect(JSON.parse(registration.body)).toEqual({ name: account.name, confirmPassword: 'learning123', email: account.email, password: 'learning123' });
   });
 
+  it('merges guest lesson and reading progress into a newly created account', async () => {
+    localStorage.setItem('fincoach-lessons', JSON.stringify(['personal-finance.money-basics']));
+    localStorage.setItem('fincoach-reading-list', JSON.stringify([{ title: 'The Psychology of Money', status: 'Reading' }]));
+    const { calls } = installApi();
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in or create an account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create an account' }));
+    fireEvent.change(await screen.findByLabelText('Your name'), { target: { value: account.name } });
+    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: account.email } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'learning123' } });
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'learning123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByRole('button', { name: `Account: ${account.name}` })).toBeTruthy();
+    const progressUpdate = calls.find((call) => call.url === '/api/learning/progress' && call.method === 'PUT');
+    expect(JSON.parse(progressUpdate.body)).toEqual({ completedLessons: ['personal-finance.money-basics'] });
+    const readingUpdate = calls.find((call) => call.url === '/api/learning/reading-list');
+    expect(JSON.parse(readingUpdate.body)).toEqual({ items: [{ title: 'The Psychology of Money', status: 'Reading' }] });
+  });
+
   it('persists a selected theme from Settings', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
