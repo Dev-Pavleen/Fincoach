@@ -13,7 +13,7 @@ npm run dev
 
 On Windows, double-click [`Start FinCoach.bat`](./Start%20FinCoach.bat) to start both the website and account API. Alternatively, in the VS Code terminal at the project root, use `npm.cmd install` once, then `npm.cmd run dev` (this avoids PowerShell's `npm.ps1` execution-policy error). Open the exact Vite `Local` address printed in the terminal; if 5173 is occupied Vite may select another port. Keep the terminal or batch window open while using FinCoach. Closing it stops the API, and account registration/sign-in will no longer work until the full app is started again.
 
-The Express API runs at `http://localhost:4000`; Vite forwards `/api` requests to it. When MongoDB is not configured locally, accounts and saved scenarios use a JSON file at `server/data/fincoach-local.json`. This is for local development only; deployed accounts use MongoDB Atlas and never fall back to a temporary serverless file. For local MongoDB, copy `server/.env.example` to `server/.env`, set `MONGODB_URI` and a random `JWT_SECRET` of at least 32 characters, then restart the API. Keep `.env` files private.
+The Express API runs at `http://localhost:4000`; Vite forwards `/api` requests to it. When MongoDB is not configured locally, accounts and saved scenarios use a JSON file at `server/data/fincoach-local.json`. This is for local development only; production startup requires `MONGODB_URI`, and production API requests never fall back to local JSON. For local MongoDB, copy `server/.env.example` to `server/.env`, set `MONGODB_URI` and a random `JWT_SECRET` of at least 32 characters, then restart the API. Keep `.env` files private.
 
 ```sh
 npm test

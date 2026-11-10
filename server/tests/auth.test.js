@@ -211,3 +211,25 @@ test('all public simulators calculate in hosted mode without requiring MongoDB',
     }
   }
 });
+
+test('production API refuses local account storage when MongoDB is missing', async () => {
+  const previous = { nodeEnv: process.env.NODE_ENV, mongo: process.env.MONGODB_URI, secret: process.env.JWT_SECRET };
+  process.env.NODE_ENV = 'production';
+  delete process.env.MONGODB_URI;
+  process.env.JWT_SECRET = 'test-production-secret-long-enough-for-validation';
+  try {
+    const health = await request('/health');
+    assert.equal(health.response.status, 503);
+    assert.deepEqual(health.data, { status: 'misconfigured', storage: 'unavailable' });
+    const registration = await request('/auth/register', {
+      method: 'POST', body: { name: 'Production Test', email: 'production@example.test', password: 'learning123', confirmPassword: 'learning123' },
+    });
+    assert.equal(registration.response.status, 503);
+    assert.match(registration.data.error, /not configured/i);
+    assert.equal(registration.cookie, undefined);
+  } finally {
+    if (previous.nodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previous.nodeEnv;
+    if (previous.mongo === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previous.mongo;
+    if (previous.secret === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = previous.secret;
+  }
+});

@@ -5,6 +5,9 @@ import mongoose from 'mongoose';
 import { Comparison, LearningProgress, Simulation, User } from './models.js';
 
 let mongoConnectPromise;
+mongoose.connection.on('disconnected', () => {
+  mongoConnectPromise = undefined;
+});
 
 const currentDirectory = process.cwd();
 const serverDirectory = path.basename(currentDirectory).toLowerCase() === 'server' ? currentDirectory : path.join(currentDirectory, 'server');
@@ -17,8 +20,12 @@ export const hasMongoConnection = () => mongoose.connection.readyState === 1;
 export async function connectMongo() {
   if (hasMongoConnection()) return mongoose.connection;
   if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required for hosted accounts.');
+  if (mongoose.connection.readyState === 0) mongoConnectPromise = undefined;
   if (!mongoConnectPromise) {
-    mongoConnectPromise = mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 })
+    const connection = mongoose.connection.readyState === 2
+      ? mongoose.connection.asPromise()
+      : mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
+    mongoConnectPromise = connection
       .then(() => mongoose.connection)
       .catch((error) => { mongoConnectPromise = undefined; throw error; });
   }

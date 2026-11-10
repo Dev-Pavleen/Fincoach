@@ -11,7 +11,8 @@ import { registerAuthRoutes, requireAuth } from './auth.js';
 import { createAuthRateLimiter } from './rateLimit.js';
 
 const supportedTypes = ['investment', 'loan', 'credit-card', 'budget', 'savings-goal', 'buy-vs-save'];
-const isHostedFunction = () => process.env.FINCOACH_HOSTED === 'true' || process.env.VERCEL === '1' || process.env.NETLIFY === 'true';
+const isServerlessPlatform = () => process.env.FINCOACH_HOSTED === 'true' || process.env.VERCEL === '1' || process.env.NETLIFY === 'true';
+const isHostedFunction = () => isServerlessPlatform() || process.env.NODE_ENV === 'production';
 const builtClientIndex = path.resolve(process.cwd(), 'public/index.html');
 const router = express.Router();
 registerAuthRoutes(router);
@@ -217,7 +218,7 @@ router.delete('/comparisons/:id', requireAuth, async (req, res) => {
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
-  if (isHostedFunction()) app.set('trust proxy', 1);
+  if (isServerlessPlatform()) app.set('trust proxy', 1);
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
