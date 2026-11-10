@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculate, calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal } from '../../shared/calculations.js';
+import { calculate, calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal, investmentValueAt } from '../../shared/calculations.js';
 
 test('investment uses the disclosed compound growth formula', () => {
   const result = calculateInvestment({ principal: 20000, years: 5, rate: 8, frequency: 1 });
@@ -20,6 +20,9 @@ test('fractional investment horizons keep the formula and chart on the same time
   const partialMonth = calculateInvestment({ principal: 20000, years: 2.45, rate: 8, frequency: 1 });
   assert.ok(Math.abs(partialMonth.finalValue - (20000 * (1 + 0.08) ** 2.45)) < 1e-8);
   assert.equal(partialMonth.chart.at(-1).period, 'Year 2.45');
+  assert.ok(Math.abs(investmentValueAt(partialMonth, 2.45) - partialMonth.finalValue) < 1e-8);
+  const contributionTimeline = calculateInvestment({ principal: 1000, monthlyContribution: 100, years: 1.05, rate: 8, fdRate: 8 });
+  assert.ok(Math.abs(investmentValueAt(contributionTimeline, 1.05) - contributionTimeline.finalValue) < 1e-8);
   const partialContributionMonth = calculateInvestment({ principal: 1000, monthlyContribution: 100, years: 1.05, rate: 0, fdRate: 0 });
   assert.equal(partialContributionMonth.totalInvested, 2200);
   assert.equal(partialContributionMonth.finalValue, 2200);

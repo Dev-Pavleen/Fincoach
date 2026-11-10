@@ -61,6 +61,21 @@ export function calculateInvestment(input) {
   };
 }
 
+export function investmentValueAt(result, elapsedYears) {
+  const years = bounded(elapsedYears, 'elapsedYears', 'Elapsed time', 0, result.years, true);
+  const elapsedMonths = years * 12;
+  const completeMonths = Math.floor(elapsedMonths);
+  const finalMonthFraction = elapsedMonths - completeMonths;
+  const monthlyRate = (1 + result.rate / 100 / result.frequency) ** (result.frequency / 12) - 1;
+  let balance = result.principal;
+  for (let month = 1; month <= completeMonths; month += 1) {
+    balance *= 1 + monthlyRate;
+    balance += result.monthlyContribution * (1 + result.annualIncrease / 100) ** Math.floor((month - 1) / 12);
+  }
+  if (finalMonthFraction > 1e-10) balance *= (1 + monthlyRate) ** finalMonthFraction;
+  return balance;
+}
+
 export function calculateLoan(input) {
   const principal = positive(input.principal, 'principal', 'Loan amount');
   const annualRate = bounded(input.rate, 'rate', 'Annual interest rate', 0, 100, true);

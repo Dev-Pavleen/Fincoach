@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BadgeIndianRupee, BookOpen, Calculator, Check, ChevronDown, CircleHelp, Clock3, CreditCard, Download, Eye, EyeOff, Home, Landmark, Menu, Pencil, Plus, RotateCcw, Save, Search, Settings2, ShieldCheck, ShoppingBag, Sparkles, Target, Trash2, Wallet, X } from 'lucide-react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { calculate } from '../../shared/calculations.js';
+import { calculate, investmentValueAt } from '../../shared/calculations.js';
 import { courseAssessments } from '../../shared/courseAssessments.js';
 import { books, courses, resources } from './learningContent.js';
 import { migrateGuestQuizAttempts } from './progressSync.js';
@@ -543,17 +543,7 @@ function ReplayChart({ a, b }) {
   if (a.type === 'investment') {
     const horizon = Math.max(left.years, right.years);
     const steps = Math.min(60, Math.max(1, Math.ceil(horizon * 2)));
-    const valueAt = (result, year) => {
-      if (year > result.years + 1e-9) return undefined;
-      const months = Math.round(year * 12);
-      const monthlyRate = (1 + result.rate / 100 / result.frequency) ** (result.frequency / 12) - 1;
-      let balance = result.principal;
-      for (let month = 1; month <= months; month += 1) {
-        balance *= 1 + monthlyRate;
-        balance += result.monthlyContribution * (1 + result.annualIncrease / 100) ** Math.floor((month - 1) / 12);
-      }
-      return balance;
-    };
+    const valueAt = (result, year) => year > result.years + 1e-9 ? undefined : investmentValueAt(result, year);
     const data = Array.from({ length: steps + 1 }, (_, index) => {
       const year = horizon * index / steps;
       return { period: `Year ${Number(year.toFixed(2))}`, A: valueAt(left, year), B: valueAt(right, year) };
