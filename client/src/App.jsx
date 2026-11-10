@@ -39,6 +39,11 @@ const scenarioOutcome = (record) => {
 };
 const safeRead = () => { try { return JSON.parse(localStorage.getItem('fincoach-scenarios') || '[]'); } catch { return []; } };
 const safeReadKey = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; } };
+const newestAttempts = (items) => [...items].sort((left, right) => {
+  const leftTime = Date.parse(left?.createdAt ?? '');
+  const rightTime = Date.parse(right?.createdAt ?? '');
+  return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0);
+});
 
 function PasswordInput({ className = 'auth-input', ...inputProps }) {
   const [visible, setVisible] = useState(false);
@@ -101,7 +106,7 @@ function App() {
         if (!mounted) return;
         if (simResponse.ok) { const body = await simResponse.json(); setHistory(body.simulations.map(normalizeRemote)); }
         if (compareResponse.ok) { const body = await compareResponse.json(); setComparisons(body.comparisons.map(normalizeComparison)); }
-        if (progressResponse.ok) { const body = await progressResponse.json(); setCompletedLessons(body.progress.completedLessons || []); setQuizAttempts([...(body.progress.quizAttempts || []), ...safeReadKey('fincoach-pending-quiz-attempts', [])]); setReadingList(body.progress.readingList || []); }
+        if (progressResponse.ok) { const body = await progressResponse.json(); setCompletedLessons(body.progress.completedLessons || []); setQuizAttempts(newestAttempts([...(body.progress.quizAttempts || []), ...safeReadKey('fincoach-pending-quiz-attempts', [])])); setReadingList(body.progress.readingList || []); }
       } catch { /* A guest can keep using the local learning experience while offline. */ }
     };
     restoreAccount();
@@ -226,10 +231,10 @@ function App() {
         if (localAttempts.length) {
           const { migrated, failed } = await migrateGuestQuizAttempts(localAttempts);
           localStorage.setItem('fincoach-pending-quiz-attempts', JSON.stringify(failed));
-          const mergedAttempts = [...accountAttempts, ...migrated, ...failed];
+          const mergedAttempts = newestAttempts([...migrated, ...failed, ...accountAttempts]);
           setQuizAttempts([...new Map(mergedAttempts.map((item) => [item.attemptId, item])).values()]);
           if (failed.length) setToast('Some quiz attempts are waiting to sync; they remain saved in this browser.');
-        } else setQuizAttempts(accountAttempts);
+        } else setQuizAttempts(newestAttempts(accountAttempts));
         if (authMode === 'register') {
           const mergedReading = [...accountReading];
           for (const item of localReading) { const index=mergedReading.findIndex((entry)=>entry.title===item.title); if(index<0)mergedReading.push(item); else mergedReading[index]=item; }
@@ -238,7 +243,7 @@ function App() {
         } else setReadingList(accountReading);
       } else {
         accountDataNeedsRefresh = true;
-        setQuizAttempts([...quizAttempts, ...safeReadKey('fincoach-pending-quiz-attempts', [])]);
+        setQuizAttempts(newestAttempts([...quizAttempts, ...safeReadKey('fincoach-pending-quiz-attempts', [])]));
       }
       setAccountOpen(false);
       setToast(accountDataNeedsRefresh ? 'Signed in; some account data could not refresh yet.' : authMode === 'register' ? 'Your learning account is ready' : `Welcome back, ${body.user.name}`);

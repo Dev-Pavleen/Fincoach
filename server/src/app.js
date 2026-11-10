@@ -54,7 +54,11 @@ router.post('/simulations/:type', (req, res) => {
 
 router.get('/learning/progress', requireAuth, async (req, res) => {
   const progress = await getLearningProgress(req.userId);
-  res.json({ progress: { completedLessons: progress.completedLessons || [], quizAttempts: progress.quizAttempts || [], readingList: progress.readingList || [] } });
+  const quizAttempts = (progress.quizAttempts || [])
+    .map((attempt, index) => ({ attempt, index, time: Date.parse(attempt.createdAt) || 0 }))
+    .sort((left, right) => right.time - left.time || right.index - left.index)
+    .map(({ attempt }) => attempt);
+  res.json({ progress: { completedLessons: progress.completedLessons || [], quizAttempts, readingList: progress.readingList || [] } });
 });
 router.put('/learning/progress', requireAuth, async (req, res) => {
   const parsed = z.object({

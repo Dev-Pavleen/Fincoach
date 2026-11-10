@@ -133,6 +133,7 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(incompleteAssessment.response.status, 400);
   const attemptHistory = await request('/learning/progress', { cookie: login.cookie });
   assert.equal(attemptHistory.data.progress.quizAttempts.length, 4);
+  assert.equal(attemptHistory.data.progress.quizAttempts[0].attemptId, '2240dd41-6e5f-4027-984f-ed155b16036f', 'attempt history is ordered newest first');
   const readingSaved = await request('/learning/reading-list', { method: 'PUT', cookie: login.cookie, body: { items: [{ title: 'The Psychology of Money', status: 'Reading' }] } });
   assert.equal(readingSaved.response.status, 200);
   assert.deepEqual(readingSaved.data.readingList, [{ title: 'The Psychology of Money', status: 'Reading' }]);
