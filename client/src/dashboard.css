@@ -83,3 +83,22 @@ html[data-theme="dark"] .dashboard-activity-list > article { border-color: #3040
   .dashboard-learning-strip { grid-template-columns: 1fr 1fr; }
   .dashboard-learning-strip .dashboard-next-lesson { grid-column: 1 / -1; }
 }
+
+.settings-learning-summary .settings-card-head { margin-bottom: 14px; }
+.settings-learning-summary .settings-card-head .text-link { margin-left: auto; white-space: nowrap; }
+.settings-learning-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.settings-learning-grid article { min-width: 0; padding: 11px 12px; border: 1px solid #e8edf4; border-radius: 9px; background: #f8faff; }
+.settings-learning-grid article span,.settings-learning-grid article strong { display: block; }
+.settings-learning-grid article span { overflow: hidden; color: #5c677d; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.settings-learning-grid article strong { margin-top: 6px; color: #001845; font: 700 15px var(--font-head); }
+html[data-theme="dark"] .settings-learning-grid article { border-color: #33415c; background: #202c3d; }
+html[data-theme="dark"] .settings-learning-grid article span { color: #c4ccda; }
+html[data-theme="dark"] .settings-learning-grid article strong { color: #f2f5fa; }
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .settings-learning-grid article { border-color: #33415c; background: #202c3d; }
+  html[data-theme="system"] .settings-learning-grid article span { color: #c4ccda; }
+  html[data-theme="system"] .settings-learning-grid article strong { color: #f2f5fa; }
+}
+@media (max-width: 620px) {
+  .settings-learning-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

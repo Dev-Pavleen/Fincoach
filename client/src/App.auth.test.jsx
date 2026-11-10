@@ -92,6 +92,22 @@ describe('account interface and session restoration', () => {
     expect(JSON.parse(localStorage.getItem('fincoach-theme'))).toBe('dark');
   });
 
+  it('shows real learning, quiz and reading data in the Settings profile snapshot', async () => {
+    localStorage.setItem('fincoach-lessons', JSON.stringify(['personal-finance.money-basics']));
+    localStorage.setItem('fincoach-quiz-attempts', JSON.stringify([{ attemptId: 'attempt-1', score: 3, total: 4 }]));
+    localStorage.setItem('fincoach-reading-list', JSON.stringify([{ title: 'The Psychology of Money', status: 'Reading' }]));
+    installApi();
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+
+    expect(await screen.findByText('1/70')).toBeTruthy();
+    expect(screen.getByText('0/8')).toBeTruthy();
+    expect(screen.getByText('75%')).toBeTruthy();
+    expect(screen.getByText('1', { selector: '.settings-learning-grid strong' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Full progress' }));
+    expect(await screen.findByRole('heading', { name: 'My progress' })).toBeTruthy();
+  });
+
   it('saves account profile changes from Settings', async () => {
     const { calls } = installApi({ authenticated: true });
     render(<App />);
