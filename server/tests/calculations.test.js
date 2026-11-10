@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateBudget, calculateCard, calculateInvestment, calculateLoan } from '../../shared/calculations.js';
+import { calculateBudget, calculateBuyVsSave, calculateCard, calculateInvestment, calculateLoan, calculateSavingsGoal } from '../../shared/calculations.js';
 
 test('investment uses the disclosed compound growth formula', () => {
   const result = calculateInvestment({ principal: 20000, years: 5, rate: 8, frequency: 1 });
@@ -19,6 +19,17 @@ test('fractional investment horizons keep the formula and chart on the same time
   assert.equal(result.chart.at(-1).fdValue, result.fdValue);
 });
 
+test('investment includes end-of-month contributions, annual increases, and inflation', () => {
+  const result = calculateInvestment({ principal: 20000, monthlyContribution: 1000, years: 1, rate: 0, fdRate: 0, annualIncrease: 0, inflation: 10 });
+  assert.equal(result.finalValue, 32000);
+  assert.equal(result.totalInvested, 32000);
+  assert.equal(result.gain, 0);
+  assert.ok(Math.abs(result.inflationAdjustedValue - 32000 / 1.1) < 0.001);
+  const raised = calculateInvestment({ principal: 1000, monthlyContribution: 100, years: 2, rate: 0, annualIncrease: 10 });
+  assert.equal(raised.totalInvested, 3520);
+  assert.equal(raised.finalValue, 3520);
+});
+
 test('loan supports zero interest and standard positive interest', () => {
   const zero = calculateLoan({ principal: 120000, rate: 0, months: 12 });
   assert.equal(zero.emi, 10000);
@@ -26,6 +37,16 @@ test('loan supports zero interest and standard positive interest', () => {
   const standard = calculateLoan({ principal: 500000, rate: 9, months: 60 });
   assert.ok(Math.abs(standard.emi - 10379.18) < 0.02);
   assert.ok(standard.totalInterest > 0);
+});
+
+test('loan extra payments reduce term and interest and include the processing fee in total cost', () => {
+  const base = calculateLoan({ principal: 100000, rate: 12, months: 24 });
+  const faster = calculateLoan({ principal: 100000, rate: 12, months: 24, extraMonthlyPayment: 2000, prepayment: 5000, processingFee: 750 });
+  assert.ok(faster.monthsPaid < faster.months);
+  assert.ok(faster.totalInterest < base.totalInterest);
+  assert.ok(faster.interestSaved > 0);
+  assert.ok(Math.abs(faster.totalPaid - faster.totalInterest - 100000 - 750) < 0.01);
+  assert.equal(faster.schedule[0].openingBalance, 100000);
 });
 
 test('budget reports balanced, remaining, and over-allocated amounts', () => {
@@ -39,7 +60,36 @@ test('credit-card schedule is reproducible and requires payments above interest'
   assert.equal(result.schedule[0].interest, 100);
   assert.equal(result.schedule[0].balance, 9100);
   assert.ok(result.months > 0 && result.totalInterest > 0);
-  assert.throws(() => calculateCard({ balance: 10000, apr: 12, payment: 100 }), /must exceed the first month’s interest/);
+  assert.throws(() => calculateCard({ balance: 10000, apr: 12, payment: 100 }), /must exceed new spending and accrued interest/);
+});
+
+test('card payoff compares the base payment with an extra-payment plan', () => {
+  const base = calculateCard({ balance: 12000, apr: 24, payment: 1000 });
+  const faster = calculateCard({ balance: 12000, apr: 24, payment: 1000, additionalMonthlyPayment: 500, newSpending: 0 });
+  assert.equal(faster.monthlyPayment, 1500);
+  assert.ok(faster.months < base.months);
+  assert.ok(faster.totalInterest < base.totalInterest);
+  assert.ok(faster.interestSaved > 0);
+});
+
+test('savings goal estimates required monthly contributions and progress', () => {
+  const targetDate = new Date();
+  targetDate.setFullYear(targetDate.getFullYear() + 1);
+  const result = calculateSavingsGoal({ target: 12000, currentSavings: 0, monthlyContribution: 500, annualRate: 0, targetDate: targetDate.toISOString().slice(0, 10) });
+  assert.equal(result.estimatedMonths, 24);
+  assert.equal(result.projectedAtTarget, 6000);
+  assert.equal(result.targetReachedByDate, false);
+  assert.equal(result.requiredMonthlyContribution, 1000);
+  assert.throws(() => calculateSavingsGoal({ target: 1000, currentSavings: 0, monthlyContribution: 100, targetDate: '2000-01-01' }), (error) => error.field === 'targetDate');
+});
+
+test('buy-versus-save comparison calculates time, fees, and financed costs', () => {
+  const result = calculateBuyVsSave({ itemPrice: 12000, availableSavings: 4000, monthlySavings: 2000, cardApr: 24, loanRate: 0, months: 4, cardFee: 100, loanFee: 500 });
+  assert.equal(result.options[0].monthsToPurchase, 4);
+  assert.equal(result.options[0].totalCost, 12000);
+  assert.equal(result.options[2].monthlyPayment, 3000);
+  assert.equal(result.options[2].totalCost, 12500);
+  assert.ok(result.options[1].totalCost > result.options[2].totalCost);
 });
 
 test('invalid and non-finite values are rejected with a field name', () => {

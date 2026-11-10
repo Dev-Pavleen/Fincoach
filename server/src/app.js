@@ -4,10 +4,10 @@ import cors from 'cors';
 import path from 'node:path';
 import { z } from 'zod';
 import { calculate } from '../../shared/calculations.js';
-import { connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findScenario, hasMongoConnection, listComparisons, listScenarios, renameComparison, renameScenario } from './dataStore.js';
+import { connectMongo, createComparison, createScenario, deleteComparison, deleteScenario, findScenario, getLearningProgress, hasMongoConnection, listComparisons, listScenarios, renameComparison, renameScenario, saveLearningProgress } from './dataStore.js';
 import { registerAuthRoutes, requireAuth } from './auth.js';
 
-const supportedTypes = ['investment', 'loan', 'credit-card', 'budget'];
+const supportedTypes = ['investment', 'loan', 'credit-card', 'budget', 'savings-goal', 'buy-vs-save'];
 const isHostedFunction = () => process.env.FINCOACH_HOSTED === 'true' || process.env.VERCEL === '1' || process.env.NETLIFY === 'true';
 const builtClientIndex = path.resolve(process.cwd(), 'public/index.html');
 const router = express.Router();
@@ -32,6 +32,20 @@ router.post('/simulations/:type', (req, res) => {
   if (!supportedTypes.includes(req.params.type)) return res.status(404).json({ error: 'Unknown simulator.' });
   try { const result = calculate(req.params.type, req.body); return res.json({ type: req.params.type, inputs: req.body, results: result }); }
   catch (error) { return res.status(400).json(fieldMessage(error)); }
+});
+
+router.get('/learning/progress', requireAuth, async (req, res) => {
+  const progress = await getLearningProgress(req.userId);
+  res.json({ progress: { completedLessons: progress.completedLessons || [] } });
+});
+router.put('/learning/progress', requireAuth, async (req, res) => {
+  const parsed = z.object({
+    completedLessons: z.array(z.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9._:-]+$/)).max(500),
+  }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Check the completed lesson list.', details: parsed.error.flatten().fieldErrors });
+  const completedLessons = [...new Set(parsed.data.completedLessons)];
+  const progress = await saveLearningProgress(req.userId, completedLessons);
+  res.json({ progress: { completedLessons: progress.completedLessons } });
 });
 
 router.get('/simulations', requireAuth, async (req, res) => {

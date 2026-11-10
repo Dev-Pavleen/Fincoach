@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
 
 const simulationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  type: { type: String, enum: ['investment', 'loan', 'credit-card', 'budget'], required: true },
+  type: { type: String, enum: ['investment', 'loan', 'credit-card', 'budget', 'savings-goal', 'buy-vs-save'], required: true },
   title: { type: String, trim: true, maxlength: 120, default: 'Untitled scenario' },
   schemaVersion: { type: Number, default: 1 },
   inputs: { type: mongoose.Schema.Types.Mixed, required: true },
@@ -25,6 +25,13 @@ const comparisonSchema = new mongoose.Schema({
   scenarioB: { type: mongoose.Schema.Types.Mixed, required: true },
 }, { timestamps: true });
 
+const learningProgressSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  completedLessons: { type: [String], default: [] },
+  schemaVersion: { type: Number, default: 1 },
+}, { timestamps: true });
+
 export const User = mongoose.models.User || mongoose.model('User', userSchema);
 export const Simulation = mongoose.models.Simulation || mongoose.model('Simulation', simulationSchema);
 export const Comparison = mongoose.models.Comparison || mongoose.model('Comparison', comparisonSchema);
+export const LearningProgress = mongoose.models.LearningProgress || mongoose.model('LearningProgress', learningProgressSchema);

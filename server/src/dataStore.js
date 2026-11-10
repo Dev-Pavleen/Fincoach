@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import mongoose from 'mongoose';
-import { Comparison, Simulation, User } from './models.js';
+import { Comparison, LearningProgress, Simulation, User } from './models.js';
 
 let mongoConnectPromise;
 
@@ -28,9 +28,9 @@ export async function connectMongo() {
 async function readLocal() {
   try {
     const parsed = JSON.parse(await readFile(localFile, 'utf8'));
-    return { users: parsed.users || [], simulations: parsed.simulations || [], comparisons: parsed.comparisons || [] };
+    return { users: parsed.users || [], simulations: parsed.simulations || [], comparisons: parsed.comparisons || [], learningProgress: parsed.learningProgress || [] };
   } catch (error) {
-    if (error.code === 'ENOENT') return { users: [], simulations: [], comparisons: [] };
+    if (error.code === 'ENOENT') return { users: [], simulations: [], comparisons: [], learningProgress: [] };
     throw error;
   }
 }
@@ -100,7 +100,7 @@ export async function updateUserPassword(id, passwordHash) {
 
 export async function deleteUserAndOwnedData(id) {
   if (hasMongoConnection()) {
-    await Promise.all([Simulation.deleteMany({ userId: id }), Comparison.deleteMany({ userId: id })]);
+    await Promise.all([Simulation.deleteMany({ userId: id }), Comparison.deleteMany({ userId: id }), LearningProgress.deleteOne({ userId: id })]);
     return User.findByIdAndDelete(id);
   }
   return changeLocal((data) => {
@@ -109,7 +109,36 @@ export async function deleteUserAndOwnedData(id) {
     const [user] = data.users.splice(index, 1);
     data.simulations = data.simulations.filter((item) => item.userId !== String(id));
     data.comparisons = data.comparisons.filter((item) => item.userId !== String(id));
+    data.learningProgress = data.learningProgress.filter((item) => item.userId !== String(id));
     return copy(user);
+  });
+}
+
+export async function getLearningProgress(userId) {
+  if (hasMongoConnection()) {
+    const record = await LearningProgress.findOne({ userId }).lean();
+    return record ?? { completedLessons: [] };
+  }
+  return copy((await readLocal()).learningProgress.find((item) => item.userId === String(userId)) || { completedLessons: [] });
+}
+
+export async function saveLearningProgress(userId, completedLessons) {
+  if (hasMongoConnection()) {
+    return LearningProgress.findOneAndUpdate(
+      { userId },
+      { $set: { completedLessons }, $setOnInsert: { schemaVersion: 1 } },
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+    ).lean();
+  }
+  return changeLocal((data) => {
+    let record = data.learningProgress.find((item) => item.userId === String(userId));
+    if (!record) {
+      record = { _id: localId(), userId: String(userId), schemaVersion: 1, createdAt: new Date().toISOString() };
+      data.learningProgress.push(record);
+    }
+    record.completedLessons = completedLessons;
+    record.updatedAt = new Date().toISOString();
+    return copy(record);
   });
 }
 

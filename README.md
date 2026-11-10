@@ -1,6 +1,6 @@
 # FinCoach
 
-FinCoach is a financial learning app for students. It provides virtual investment and fixed-deposit growth, loan, credit-card repayment, and monthly budget simulators. Decision Replay saves a baseline and variant so you can inspect changed assumptions and compare the calculated outcomes. The app is educational; it does not provide personalised financial advice or connect to real accounts.
+FinCoach is a financial learning app for students. It provides virtual investment and fixed-deposit growth, loan, credit-card repayment, monthly budget, savings goal, and buy-versus-save simulators. Decision Replay saves a baseline and variant so you can inspect changed assumptions and compare the calculated outcomes. The app is educational; it does not provide personalised financial advice or connect to real accounts.
 
 ## Run locally
 
@@ -22,14 +22,14 @@ npm run build
 
 ## What is included
 
-- Four responsive simulators with input validation, charts, and formula/assumption breakdowns.
+- Six responsive simulators with input validation, charts, and formula/assumption breakdowns, including goal-date savings estimates and save-first versus financing cost comparisons.
 - Browser-persisted scenarios and immutable, reopenable Decision Replay comparisons; account users can store comparisons on the server.
 - Optional account registration and login using bcrypt password hashes and an HTTP-only session cookie.
 - Profile editing, authenticated password changes, and password-confirmed account deletion, plus saved-scenario export and deletion controls.
 - MongoDB models for user-owned simulations and immutable comparison snapshots.
 - Public calculation endpoints and authenticated scenario CRUD endpoints.
 - Search, simulator filters, and date/name sorting for scenario history.
-- Four interactive financial lessons with quizzes and browser-saved completion progress, plus FAQ and educational-use notices.
+- Four introductory financial lessons with quizzes; guest lesson progress is browser-saved and signed-in progress is stored with the account, plus FAQ and educational-use notices.
 - Light, dark, and system display themes, a getting-started checklist, and resettable simulator inputs.
 
 ## Architecture
@@ -65,6 +65,8 @@ flowchart LR
 | `GET /api/simulations/:id` | Signed in | Read one owned scenario |
 | `PATCH /api/simulations/:id` | Signed in | Rename one owned scenario |
 | `DELETE /api/simulations/:id` | Signed in | Delete one owned scenario |
+| `GET /api/learning/progress` | Signed in | Read the user's completed lessons |
+| `PUT /api/learning/progress` | Signed in | Replace the user's validated completed lesson list |
 | `POST /api/comparisons` | Signed in | Save immutable comparison snapshots |
 | `PATCH /api/comparisons/:id` | Signed in | Rename one owned comparison |
 | `DELETE /api/comparisons/:id` | Signed in | Delete one owned comparison |
@@ -77,6 +79,8 @@ API errors return a safe message and, where relevant, a field name. The API only
 - The loan uses the standard fixed-rate EMI formula, converts nominal annual interest to a monthly rate by dividing by 12, and handles a zero-rate loan separately. Totals use unrounded values.
 - The credit-card model converts APR to a monthly rate using APR ÷ 12, adds interest before payment, uses the same payment each month, and assumes no new purchases or fees. The payment must exceed accrued interest and clear the balance within 600 months. This is not any issuer's exact minimum-payment method.
 - The budget planner totals virtual allocations. An over-allocation is highlighted; savings rate is the savings category divided by monthly income.
+- The savings goal planner adds end-of-month contributions and monthly interest (annual rate ÷ 12), projects the balance to the target date, and solves for the contribution needed by that date. It caps projections at 50 years.
+- The purchase comparison assumes full-price financing with fixed amortized payments, separate user-entered processing fees, and no other charges. Save-first assumes no interest and monthly deposits until the purchase price is available.
 - All monetary values are illustrative and exclude tax/fees unless explicitly shown.
 
 ## Academic project package
