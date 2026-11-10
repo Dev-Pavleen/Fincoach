@@ -50,6 +50,15 @@ flowchart LR
 
 `shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` assembles each course from its core lessons and the topic-specific `shared/supplementalLessons.js` content. Lesson checks and `shared/courseAssessments.js` supply assessment keys to the API, so signed-in scores are recomputed server-side. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
 
+### Data model
+
+- `User`: display name, normalized unique email, and a bcrypt password hash excluded from normal queries and API responses.
+- `Simulation`: owner ID, simulator type, title, calculation schema version, original inputs, assumptions, and recomputed results. User and update-time indexes support private history lookups.
+- `Comparison`: owner ID, baseline and variant snapshots, and append-only replay versions with changed inputs, notes, and timestamps.
+- `LearningProgress`: one record per user containing completed lesson IDs, quiz-attempt snapshots, and book-reading statuses.
+
+There are no seeded demo credentials. For a local demonstration, start the app and register through the account form; local development stores those records in the private JSON development store unless MongoDB is configured. For a hosted demonstration, first verify `/api/health` reports MongoDB, then register a dedicated demo account. Do not commit or share its password.
+
 ## API
 
 | Method and path | Access | Purpose |
@@ -99,7 +108,7 @@ The Learn page links to official education material from RBI, SEBI, NPCI, and th
 
 ## Academic project package
 
-Capture interface screenshots, sample inputs/results, test evidence, and the architecture above during development. Use the current department report format and confirm its certificate wording, reference rules, training acceptance, and submission deadline with faculty before finalising those materials. The workspace includes the provided report-format and project-requirements documents as references.
+The repository contains the source, setup and API documentation, architecture diagram, formula assumptions, and automated test instructions. Add approved interface screenshots and sample calculation evidence to the final submission. The department report template and project-requirements documents were not present in this checkout, so use the current approved department format and confirm certificate wording, reference rules, training acceptance, and deadline with faculty before submitting. Do not treat this README as a substitute for those academic approvals.
 
 ## Deployment
 
