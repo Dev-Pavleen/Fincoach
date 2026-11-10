@@ -79,7 +79,7 @@ function App() {
 
   useEffect(() => { if (!user) localStorage.setItem('fincoach-scenarios', JSON.stringify(history)); }, [history, user]);
   useEffect(() => { if (!user) localStorage.setItem('fincoach-comparisons', JSON.stringify(comparisons)); }, [comparisons, user]);
-  useEffect(() => { localStorage.setItem('fincoach-lessons', JSON.stringify(completedLessons)); }, [completedLessons]);
+  useEffect(() => { if (!user) localStorage.setItem('fincoach-lessons', JSON.stringify(completedLessons)); }, [completedLessons, user]);
   useEffect(() => { if (!user) localStorage.setItem('fincoach-quiz-attempts', JSON.stringify(quizAttempts)); }, [quizAttempts, user]);
   useEffect(() => { if (!user) localStorage.setItem('fincoach-reading-list', JSON.stringify(readingList)); }, [readingList, user]);
   useEffect(() => { localStorage.setItem('fincoach-theme', JSON.stringify(theme)); document.documentElement.dataset.theme = theme; }, [theme]);
