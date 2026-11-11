@@ -343,7 +343,16 @@ function App() {
   const saveProfile = async (profile) => { try { const response = await fetch('/api/auth/profile', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Could not update your profile.'); setUser(body.user); setToast('Profile updated'); return true; } catch (caught) { setToast(caught.message); return false; } };
   const changePassword = async (passwords) => { try { const response = await fetch('/api/auth/password', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(passwords) }); const body = await response.json(); if (!response.ok) throw new Error(body.details?.newPassword?.[0] || body.error || 'Could not update your password.'); setToast('Password updated'); return true; } catch (caught) { setToast(caught.message); return false; } };
   const deleteAccount = async (currentPassword) => { try { const response = await fetch('/api/auth/account', { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword }) }); if (!response.ok) { const body = await response.json(); throw new Error(body.error || 'Could not delete this account.'); } setSessionMarker(false); setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setToast('Account and account scenarios deleted'); return true; } catch (caught) { setToast(caught.message); return false; } };
-  const signOut = async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {} setSessionMarker(false); setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setAccountOpen(false); setToast('Signed out'); };
+  const signOut = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      if (!response.ok) throw new Error('The account service did not confirm sign-out.');
+    } catch {
+      setToast('Could not sign out right now. Please try again when the account service is available.');
+      return;
+    }
+    setSessionMarker(false); setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setAccountOpen(false); setToast('Signed out');
+  };
   const clearHistory = async () => {
     if (!window.confirm(`Delete all ${history.length} saved ${history.length === 1 ? 'scenario' : 'scenarios'}? This cannot be undone.`)) return;
     if (user) {

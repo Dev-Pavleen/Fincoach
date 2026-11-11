@@ -67,6 +67,30 @@ describe('account interface and session restoration', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it('clears local account state only after the server confirms logout', async () => {
+    installApi({ authenticated: true });
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: `Account: ${account.name}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    expect(await screen.findByText('Signed out')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: `Account: ${account.name}` })).toBeNull();
+    expect(localStorage.getItem('fincoach-session-active')).toBeNull();
+  });
+
+  it('keeps the account visible when the logout API fails', async () => {
+    const { fetchMock } = installApi({ authenticated: true });
+    const originalFetch = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation((url, options) => String(url) === '/api/auth/logout' ? Promise.resolve(response(503, {})) : originalFetch(url, options));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: `Account: ${account.name}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    expect(await screen.findByText('Could not sign out right now. Please try again when the account service is available.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: `Account: ${account.name}` })).toBeTruthy();
+    expect(localStorage.getItem('fincoach-session-active')).toBe('true');
+  });
+
   it('submits login credentials and exposes the password visibility toggle', async () => {
     const { calls } = installApi();
     render(<App />);
