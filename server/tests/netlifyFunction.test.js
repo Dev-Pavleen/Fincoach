@@ -37,6 +37,17 @@ test('Netlify function serves public simulator results through its API adapter',
   assert.ok(Math.abs(result.results.finalValue - 29386.56) < 0.02);
 });
 
+test('Netlify function returns both card payoff paths from the shared calculation engine', async () => {
+  const response = await callFunction('/api/simulations/credit-card', 'POST', {
+    balance: 12000, apr: 24, payment: 2000, minimumPaymentRate: 5, minimumPaymentFloor: 100,
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  const result = JSON.parse(response.body).results;
+  assert.equal(result.minimumPaymentRate, 5);
+  assert.equal(result.minimumSchedule[0].payment, 612);
+  assert.equal(result.comparisonChart[0].higherPaymentBalance, result.schedule[0].balance);
+});
+
 test('Netlify function reports hosted account configuration without using local storage', async () => {
   const response = await callFunction('/api/health');
   assert.equal(response.statusCode, 503);
