@@ -5,9 +5,9 @@
   "type": "module",
   "workspaces": ["client", "server"],
   "scripts": {
-    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "dev": "concurrently -k -n api,web -c blue,green \"node server/src/index.js\" \"npm --workspace client run dev\"",
     "dev:client": "npm --workspace client run dev",
-    "dev:server": "npm --workspace server run dev",
+    "dev:server": "node server/src/index.js",
     "build": "npm --workspace client run build && node scripts/prepare-vercel.mjs",
     "start": "npm --workspace server run start",
     "test": "npm --workspace server test && npm --workspace client test"
