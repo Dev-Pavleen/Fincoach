@@ -1,12 +1,9 @@
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
 import { loadOrCreateLocalJwtSecret } from './dataStore.js';
+import { loadEnvironment } from './environment.js';
 
-const serverDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-dotenv.config({ path: path.join(serverDirectory, '.env') });
+loadEnvironment();
 
 const port = Number(process.env.PORT || 4000);
 if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'production') {
