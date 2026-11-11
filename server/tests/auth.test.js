@@ -244,6 +244,13 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.ok(dataAfterDeletion.learningProgress.every((record) => record.userId !== registered.data.user.id));
 });
 
+test('default local CORS origin matches the documented Vite preview port', async () => {
+  const response = await fetch(`${apiUrl}/health`, { headers: { Origin: 'http://localhost:5176' } });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('access-control-allow-origin'), 'http://localhost:5176');
+  assert.equal(response.headers.get('access-control-allow-credentials'), 'true');
+});
+
 test('all public simulators calculate in hosted mode without requiring MongoDB', async () => {
   const previous = { hosted: process.env.FINCOACH_HOSTED, mongo: process.env.MONGODB_URI, netlify: process.env.NETLIFY, vercel: process.env.VERCEL };
   process.env.FINCOACH_HOSTED = 'true';
