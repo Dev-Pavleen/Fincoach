@@ -131,12 +131,18 @@ test('registration validation, account login, sessions and owner-scoped scenario
 
   const progressSaved = await request('/learning/progress', {
     method: 'PUT', cookie: login.cookie,
-    body: { completedLessons: ['finance.basics.01', 'finance.basics.01', 'budgeting.plan.02'] },
+    body: { completedLessons: ['personal-finance.money-basics', 'personal-finance.money-basics', 'budgeting.budget-basics'] },
   });
   assert.equal(progressSaved.response.status, 200);
-  assert.deepEqual(progressSaved.data.progress.completedLessons, ['finance.basics.01', 'budgeting.plan.02']);
+  assert.deepEqual(progressSaved.data.progress.completedLessons, ['personal-finance.money-basics', 'budgeting.budget-basics']);
+  const invalidProgress = await request('/learning/progress', {
+    method: 'PUT', cookie: login.cookie,
+    body: { completedLessons: ['personal-finance.money-basics', 'unknown.lesson'] },
+  });
+  assert.equal(invalidProgress.response.status, 400);
+  assert.match(invalidProgress.data.error, /match modules in the FinCoach learning library/i);
   const progressRead = await request('/learning/progress', { cookie: login.cookie });
-  assert.deepEqual(progressRead.data.progress.completedLessons, ['finance.basics.01', 'budgeting.plan.02']);
+  assert.deepEqual(progressRead.data.progress.completedLessons, ['personal-finance.money-basics', 'budgeting.budget-basics']);
   const wrongAttemptId = '1485ae58-a426-4bb6-8b37-4e6dc84bcd5b';
   const wrongAttempt = await request('/learning/attempts', { method: 'POST', cookie: login.cookie, body: { attemptId: wrongAttemptId, lessonId: 'personal-finance.money-basics', selectedAnswer: 2 } });
   assert.equal(wrongAttempt.response.status, 201);

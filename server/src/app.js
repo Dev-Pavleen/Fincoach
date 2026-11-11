@@ -11,6 +11,7 @@ import { registerAuthRoutes, requireAuth } from './auth.js';
 import { createAuthRateLimiter } from './rateLimit.js';
 
 const supportedTypes = ['investment', 'loan', 'credit-card', 'budget', 'savings-goal', 'buy-vs-save'];
+const knownLessonIds = new Set(courses.flatMap((course) => course.modules.map((item) => item.lesson.id)));
 const isServerlessPlatform = () => process.env.FINCOACH_HOSTED === 'true' || process.env.VERCEL === '1' || process.env.NETLIFY === 'true';
 const isHostedFunction = () => isServerlessPlatform() || process.env.NODE_ENV === 'production';
 const builtClientIndex = path.resolve(process.cwd(), 'public/index.html');
@@ -66,6 +67,9 @@ router.put('/learning/progress', requireAuth, async (req, res) => {
     completedLessons: z.array(z.string().trim().min(1).max(120).regex(/^[a-zA-Z0-9._:-]+$/)).max(500),
   }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Check the completed lesson list.', details: parsed.error.flatten().fieldErrors });
+  if (parsed.data.completedLessons.some((id) => !knownLessonIds.has(id))) {
+    return res.status(400).json({ error: 'Completed lessons must match modules in the FinCoach learning library.', details: { completedLessons: ['Remove lesson IDs that are not in the current curriculum.'] } });
+  }
   const completedLessons = [...new Set(parsed.data.completedLessons)];
   const progress = await saveLearningProgress(req.userId, completedLessons);
   res.json({ progress: { completedLessons: progress.completedLessons } });
