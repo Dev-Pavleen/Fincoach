@@ -4,7 +4,7 @@ FinCoach is a financial learning app for students. It provides virtual investmen
 
 ## Run locally
 
-Requirements: Node.js 20.19+ (or 22.12+) and npm. From the project folder:
+Requirements: Node.js 20.19+ (or 22.12+) and npm. The repository pins Node.js `22.15.0` in `.nvmrc` for repeatable CI and deployment builds. From the project folder:
 
 ```sh
 npm install
@@ -26,12 +26,12 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 
 ### Latest verification (11 November 2026)
 
-- `npm test`: passed — 33 server/API, calculation, Netlify-adapter, and configuration tests plus 22 client interaction tests (55 total), including both card payoff paths through the Netlify function, 72-byte bcrypt password validation in the API and account form, navigation through all 70 lessons, direct course/lesson and Student workspace URLs, guest progress migration, the editable card minimum-payment comparison, matching local CORS defaults, expired-session messaging, keyboard operation of the account dialog, and logout failure handling.
-- `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
-- Local startup check: the frontend returned HTTP 200 and Vite's `/api/health` proxy returned `{"status":"ok","storage":"local"}` on port 5176.
-- Netlify adapter test: the automated test invokes the function handler and confirms simulator responses. Netlify CLI `build` also completed locally, including bundling `api.mjs`. The public Netlify health URL currently returns HTTP 401 from the site's access gate, so the deployed function and its MongoDB configuration cannot yet be verified.
-- GitHub Actions: commit `89ca802` on `main` passed the full test and production-build workflow (verified 11 November 2026).
-- `pnpm audit --prod`: passed with no known production dependency vulnerabilities after upgrading Mongoose and pinning the patched `body-parser` release.
+- `pnpm test`: passed — 33 server/API, calculation, Netlify-adapter, and configuration tests plus 22 client interaction tests (55 total), including both card payoff paths through the Netlify function, 72-byte bcrypt password validation in the API and account form, navigation through all 70 lessons, direct course/lesson and Student workspace URLs, guest progress migration, the editable card minimum-payment comparison, matching local CORS defaults, expired-session messaging, keyboard operation of the account dialog, and logout failure handling.
+- `pnpm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
+- Local startup check: the homepage, Student workspace, Learn page, and local API health endpoint returned HTTP 200 on ports 5222 and 4000; API health reported `{"status":"ok","storage":"local"}`.
+- Netlify CLI `build --offline --filter fincoach-client`: passed, including bundling `netlify/functions/api.mjs`. The public Netlify health URL currently returns HTTP 401 from the site's access gate, so the deployed function and its MongoDB configuration cannot yet be verified.
+- GitHub Actions: the workflow for `b3f65e1` passed tests and the production build (verified 11 November 2026).
+- `pnpm audit --prod`: passed with no known production dependency vulnerabilities.
 - Fresh CI-style pnpm install: passed with frozen lockfile and the approved esbuild postinstall script.
 - Account persistence was verified against the local development JSON store. A live MongoDB Atlas connection and the deployed Netlify/Vercel environment were not available for verification; hosted accounts require valid `MONGODB_URI` and `JWT_SECRET` values, as described below.
 
