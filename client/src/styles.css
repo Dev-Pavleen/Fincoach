@@ -134,3 +134,7 @@ html[data-theme="dark"] .replay-version-marker{background:#33415c;color:#8bbcff}
 .button:focus-visible,.nav-item:focus-visible,.module-card:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #0466c8;outline-offset:2px}
 
 .auth-input:focus,.scenario-rename input:focus,.history-select-label select:focus{border-color:#0466c8;box-shadow:0 0 0 2px #0466c81c}
+
+/* Keep any non-INR prefix aligned with the blue palette. */
+.input-prefix{color:#5c677d}
+html[data-theme="dark"] .input-prefix{color:#b8c6d9}
