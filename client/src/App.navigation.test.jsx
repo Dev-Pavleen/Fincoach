@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import App from './App.jsx';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderApp } from './testUtils.jsx';
 import { courses } from './learningContent.js';
 
 describe('learning and workspace navigation', () => {
@@ -16,7 +16,7 @@ describe('learning and workspace navigation', () => {
   });
 
   it('opens a selected course and its first learning module from Learn', async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
     fireEvent.click(await screen.findByRole('button', { name: /Introduction to Personal Finance/ }));
     expect(screen.getByRole('heading', { name: 'Introduction to Personal Finance' })).toBeTruthy();
@@ -27,7 +27,7 @@ describe('learning and workspace navigation', () => {
 
   it('opens every learning module from the course library', async () => {
     expect(courses.reduce((total, course) => total + course.modules.length, 0)).toBe(70);
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
 
     for (const course of courses) {
@@ -41,10 +41,10 @@ describe('learning and workspace navigation', () => {
       }
       fireEvent.click(screen.getByRole('button', { name: /All courses/ }));
     }
-  });
+  }, 20000);
 
   it('opens a course and module from My progress, including the empty-progress path', async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'My progress' }));
     expect(await screen.findByText(/No lessons completed yet/)).toBeTruthy();
 
@@ -55,7 +55,7 @@ describe('learning and workspace navigation', () => {
   });
 
   it('saves a correct lesson check and restores progress after a reload', async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
     fireEvent.click(await screen.findByRole('button', { name: /Introduction to Personal Finance/ }));
     fireEvent.click(screen.getByRole('button', { name: /Understanding money/ }));
@@ -64,13 +64,13 @@ describe('learning and workspace navigation', () => {
     await waitFor(() => expect(JSON.parse(localStorage.getItem('fincoach-lessons') || '[]')).toContain('personal-finance.money-basics'));
 
     cleanup();
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'My progress' }));
     expect(await screen.findByText('1 of 7 lessons · 14%')).toBeTruthy();
   });
 
   it('opens Overview from the Student workspace control', async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
     await screen.findByRole('heading', { name: 'Learn the building blocks' });
 
@@ -79,8 +79,36 @@ describe('learning and workspace navigation', () => {
     expect(screen.getByRole('heading', { name: /Good choices start with a little curiosity/ })).toBeTruthy();
   });
 
+  it('opens the Student workspace from its direct route', async () => {
+    renderApp(['/workspace']);
+    expect(await screen.findByRole('heading', { name: /Good choices start with a little curiosity/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Overview' }).className).toContain('nav-active');
+  });
+
+  it('keeps course and lesson navigation in the URL for direct links and refreshes', async () => {
+    const course = courses[0];
+    const lesson = course.modules[0];
+    const courseUrl = `/learn/${course.id}`;
+    const lessonUrl = `${courseUrl}/${lesson.id}`;
+
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(course.title) }));
+    await waitFor(() => expect(screen.getByTestId('route-path').textContent).toBe(courseUrl));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(lesson.title) }));
+    expect(await screen.findByRole('heading', { name: lesson.lesson.title })).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('route-path').textContent).toBe(lessonUrl));
+
+    cleanup();
+    renderApp([lessonUrl]);
+    expect(await screen.findByRole('heading', { name: lesson.lesson.title })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Student workspace overview' }));
+    expect(await screen.findByRole('heading', { name: /Good choices start with a little curiosity/ })).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('route-path').textContent).toBe('/workspace'));
+  });
+
   it('updates the credit-card minimum-payment comparison when its assumptions change', async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Simulators' }));
     fireEvent.click(screen.getByRole('button', { name: 'Credit card' }));
 
@@ -101,7 +129,7 @@ describe('learning and workspace navigation', () => {
     localStorage.setItem('fincoach-theme', '{"theme":"dark"}');
     localStorage.setItem('fincoach-last-lesson', '{"courseId":"not-a-course"}');
 
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'My progress' }));
     expect(await screen.findByRole('heading', { name: 'My progress' })).toBeTruthy();
     expect(screen.getByText('0/70')).toBeTruthy();

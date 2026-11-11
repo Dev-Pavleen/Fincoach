@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import App from './App.jsx';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { renderApp } from './testUtils.jsx';
 
 const account = { id: 'user-1', name: 'Demo Student', email: 'demo@example.test', createdAt: '2026-02-03T00:00:00.000Z' };
 const emptyProgress = { progress: { completedLessons: [], quizAttempts: [], readingList: [] } };
@@ -34,7 +34,7 @@ describe('account interface and session restoration', () => {
 
   it('restores a valid server session after the app is loaded', async () => {
     const { fetchMock } = installApi({ authenticated: true });
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByRole('button', { name: `Account: ${account.name}` })).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', { credentials: 'include' });
@@ -43,14 +43,14 @@ describe('account interface and session restoration', () => {
   it('explains an expired session and clears its remembered sign-in marker', async () => {
     localStorage.setItem('fincoach-session-active', JSON.stringify(true));
     installApi();
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByText('Your session has expired. Sign in again to sync your account.')).toBeTruthy();
     expect(localStorage.getItem('fincoach-session-active')).toBeNull();
   });
 
   it('traps keyboard focus in the account dialog and closes it with Escape', () => {
-    render(<App />);
+    renderApp();
     const trigger = screen.getByRole('button', { name: 'Sign in or create an account' });
     trigger.focus();
     fireEvent.click(trigger);
@@ -69,7 +69,7 @@ describe('account interface and session restoration', () => {
 
   it('clears local account state only after the server confirms logout', async () => {
     installApi({ authenticated: true });
-    render(<App />);
+    renderApp();
     fireEvent.click(await screen.findByRole('button', { name: `Account: ${account.name}` }));
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
 
@@ -82,7 +82,7 @@ describe('account interface and session restoration', () => {
     const { fetchMock } = installApi({ authenticated: true });
     const originalFetch = fetchMock.getMockImplementation();
     fetchMock.mockImplementation((url, options) => String(url) === '/api/auth/logout' ? Promise.resolve(response(503, {})) : originalFetch(url, options));
-    render(<App />);
+    renderApp();
     fireEvent.click(await screen.findByRole('button', { name: `Account: ${account.name}` }));
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
 
@@ -93,7 +93,7 @@ describe('account interface and session restoration', () => {
 
   it('submits login credentials and exposes the password visibility toggle', async () => {
     const { calls } = installApi();
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Sign in or create an account' }));
 
     const password = screen.getByLabelText('Password');
@@ -116,7 +116,7 @@ describe('account interface and session restoration', () => {
 
   it('submits a matching registration and keeps the new account signed in', async () => {
     const { calls } = installApi();
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Sign in or create an account' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create an account' }));
     expect(await screen.findByRole('heading', { name: 'Create your account' })).toBeTruthy();
@@ -137,7 +137,7 @@ describe('account interface and session restoration', () => {
     localStorage.setItem('fincoach-lessons', JSON.stringify(['personal-finance.money-basics']));
     localStorage.setItem('fincoach-reading-list', JSON.stringify([{ title: 'The Psychology of Money', status: 'Reading' }]));
     const { calls } = installApi();
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Sign in or create an account' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create an account' }));
     fireEvent.change(await screen.findByLabelText('Your name'), { target: { value: account.name } });
@@ -154,7 +154,7 @@ describe('account interface and session restoration', () => {
   });
 
   it('persists a selected theme from Settings', async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
 
@@ -169,7 +169,7 @@ describe('account interface and session restoration', () => {
     localStorage.setItem('fincoach-quiz-attempts', JSON.stringify([{ attemptId: 'attempt-1', score: 3, total: 4 }]));
     localStorage.setItem('fincoach-reading-list', JSON.stringify([{ title: 'The Psychology of Money', status: 'Reading' }]));
     installApi();
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
 
     expect(await screen.findByText('1/70')).toBeTruthy();
@@ -182,7 +182,7 @@ describe('account interface and session restoration', () => {
 
   it('saves account profile changes from Settings', async () => {
     const { calls } = installApi({ authenticated: true });
-    render(<App />);
+    renderApp();
     expect(await screen.findByRole('button', { name: `Account: ${account.name}` })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
     expect(await screen.findByText('Account created 3 February 2026')).toBeTruthy();

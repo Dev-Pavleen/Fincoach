@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import App from './App.jsx';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { renderApp } from './testUtils.jsx';
 
 describe('Decision Replay interface', () => {
   beforeEach(() => {
@@ -19,7 +19,7 @@ describe('Decision Replay interface', () => {
   });
 
   it('compares a baseline and changed variant and saves the replay timeline', async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Simulators' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save as baseline' }));
 

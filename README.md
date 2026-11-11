@@ -26,7 +26,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 
 ### Latest verification (11 November 2026)
 
-- `npm test`: passed — 33 server/API, calculation, Netlify-adapter, and configuration tests plus 19 client interaction tests (52 total), including both card payoff paths through the Netlify function, navigation through all 70 lessons, the Student workspace, guest progress migration, the editable card minimum-payment comparison, matching local CORS defaults, expired-session messaging, keyboard operation of the account dialog, and logout failure handling.
+- `npm test`: passed — 33 server/API, calculation, Netlify-adapter, and configuration tests plus 20 client interaction tests (53 total), including both card payoff paths through the Netlify function, navigation through all 70 lessons, direct course/lesson URLs, Student workspace navigation, guest progress migration, the editable card minimum-payment comparison, matching local CORS defaults, expired-session messaging, keyboard operation of the account dialog, and logout failure handling.
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
 - Local startup check: the frontend returned HTTP 200 and Vite's `/api/health` proxy returned `{"status":"ok","storage":"local"}` on port 5176.
 - Netlify adapter test: the automated test invokes the function handler and confirms simulator responses. Netlify CLI `build` also completed locally, including bundling `api.mjs`. The public Netlify health URL currently returns HTTP 401 from the site's access gate, so the deployed function and its MongoDB configuration cannot yet be verified.
@@ -47,6 +47,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 - Search, simulator filters, and date/name sorting for scenario history.
 - Eight searchable learning courses covering 70 topic-specific modules, with individual lesson checks, previous/next navigation, and one four-question course-end assessment per course. The 32 assessment questions include multiple-choice, true/false, scenario, and calculation formats with explanations; authenticated scores are recomputed by the API. Supplementary lesson material and checks live in `shared/supplementalLessons.js` instead of repeating a generic course paragraph. The book and official-resource library is searchable, and reading status and learning progress are tracked.
 - Light, dark, and system display themes, a getting-started checklist, and resettable simulator inputs.
+- React Router URLs for workspace sections, individual simulators, courses, and lessons. Lesson links can be refreshed or shared, and browser Back/Forward follows in-app navigation.
 
 ## Architecture
 

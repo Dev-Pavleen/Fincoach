@@ -139,9 +139,10 @@ html[data-theme="dark"] .replay-version-marker{background:#33415c;color:#8bbcff}
 .input-prefix{color:#5c677d}
 html[data-theme="dark"] .input-prefix{color:#b8c6d9}
 
-/* Simulator fields use a single blue focus state, without the legacy brown edge. */
-.input-shell:focus-within{border-color:#0466c8!important;box-shadow:0 0 0 3px rgb(4 102 200 / 14%)!important;outline:0!important}
-.input-shell input:focus,.input-shell input:focus-visible{outline:0!important;box-shadow:none!important}
+/* Keep number fields on the blue palette, without a browser or legacy brown focus edge. */
+.input-shell:focus-within,.field:focus-within .input-shell{border-color:#0466c8!important;box-shadow:0 0 0 3px rgb(4 102 200 / 14%)!important;outline:0!important}
+.input-shell input,.input-shell input:focus,.input-shell input:focus-visible{border:0!important;outline:0!important;box-shadow:none!important;appearance:textfield}
+.input-shell input[type=number]::-webkit-inner-spin-button,.input-shell input[type=number]::-webkit-outer-spin-button{appearance:none;-webkit-appearance:none;margin:0}
 
 .card-strategy-comparison{background:#fff;border:1px solid #dce2eb;border-radius:11px;padding:16px;margin:12px 0;color:#001845}
 .card-strategy-comparison h3{font-size:14px;margin:0 0 6px}
