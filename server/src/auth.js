@@ -4,8 +4,10 @@ import { z } from 'zod';
 import { createUser, deleteUserAndOwnedData, findUserByEmail, findUserById, updateUserPassword, updateUserProfile } from './dataStore.js';
 
 const emailSchema = z.string().trim().email().max(254);
-const passwordSchema = z.string().min(8, 'Password must be at least 8 characters.').max(128, 'Password cannot exceed 128 characters.').regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, 'Password must include at least one letter and one number.');
-const loginCredentials = z.object({ email: emailSchema, password: z.string().min(8).max(128) });
+const passwordInputSchema = z.string().min(8, 'Password must be at least 8 characters.').max(128, 'Password cannot exceed 128 characters.');
+const bcryptSafePassword = (schema) => schema.refine((password) => Buffer.byteLength(password, 'utf8') <= 72, 'Password cannot exceed 72 UTF-8 bytes.');
+const passwordSchema = bcryptSafePassword(passwordInputSchema.regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, 'Password must include at least one letter and one number.'));
+const loginCredentials = z.object({ email: emailSchema, password: bcryptSafePassword(passwordInputSchema) });
 const registration = z.object({ email: emailSchema, password: passwordSchema,
   name: z.string().trim().min(1).max(80),
   confirmPassword: z.string().min(1, 'Confirm your password.'),
@@ -67,7 +69,7 @@ export function registerAuthRoutes(router) {
     } catch (error) { if (error.code === 11000) return res.status(409).json({ error: 'That email is already in use.' }); throw error; }
   });
   router.patch('/auth/password', requireAuth, async (req, res) => {
-    const parsed = z.object({ currentPassword: z.string().min(8).max(128), newPassword: passwordSchema }).safeParse(req.body);
+    const parsed = z.object({ currentPassword: bcryptSafePassword(passwordInputSchema), newPassword: passwordSchema }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Check your password details.', details: parsed.error.flatten().fieldErrors });
     const user = await findUserById(req.userId, true);
     if (!user || !(await bcrypt.compare(parsed.data.currentPassword, user.passwordHash))) return res.status(401).json({ error: 'Current password is incorrect.' });
@@ -75,7 +77,7 @@ export function registerAuthRoutes(router) {
     res.json({ message: 'Password updated.' });
   });
   router.delete('/auth/account', requireAuth, async (req, res) => {
-    const parsed = z.object({ currentPassword: z.string().min(8).max(128) }).safeParse(req.body);
+    const parsed = z.object({ currentPassword: bcryptSafePassword(passwordInputSchema) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Enter your current password to delete your account.' });
     const user = await findUserById(req.userId, true);
     if (!user || !(await bcrypt.compare(parsed.data.currentPassword, user.passwordHash))) return res.status(401).json({ error: 'Current password is incorrect.' });

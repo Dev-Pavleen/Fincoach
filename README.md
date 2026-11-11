@@ -26,7 +26,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 
 ### Latest verification (11 November 2026)
 
-- `npm test`: passed — 33 server/API, calculation, Netlify-adapter, and configuration tests plus 21 client interaction tests (54 total), including both card payoff paths through the Netlify function, navigation through all 70 lessons, direct course/lesson and Student workspace URLs, guest progress migration, the editable card minimum-payment comparison, matching local CORS defaults, expired-session messaging, keyboard operation of the account dialog, and logout failure handling.
+- `npm test`: passed — 33 server/API, calculation, Netlify-adapter, and configuration tests plus 22 client interaction tests (55 total), including both card payoff paths through the Netlify function, 72-byte bcrypt password validation in the API and account form, navigation through all 70 lessons, direct course/lesson and Student workspace URLs, guest progress migration, the editable card minimum-payment comparison, matching local CORS defaults, expired-session messaging, keyboard operation of the account dialog, and logout failure handling.
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
 - Local startup check: the frontend returned HTTP 200 and Vite's `/api/health` proxy returned `{"status":"ok","storage":"local"}` on port 5176.
 - Netlify adapter test: the automated test invokes the function handler and confirms simulator responses. Netlify CLI `build` also completed locally, including bundling `api.mjs`. The public Netlify health URL currently returns HTTP 401 from the site's access gate, so the deployed function and its MongoDB configuration cannot yet be verified.
@@ -40,7 +40,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 - Six responsive simulators with input validation, charts, and formula/assumption breakdowns, including an adjustable educational credit-card minimum-payment estimate, goal-date savings estimates, and save-first versus financing cost comparisons.
 - Browser-persisted scenarios and immutable, reopenable Decision Replay comparisons; account users can store comparisons on the server.
 - Decision Replay keeps an append-only version timeline for each comparison, including input changes, notes, timestamps, and server-recomputed result snapshots. The baseline remains fixed while new assumptions are replayed.
-- Optional account registration and login using bcrypt password hashes and an HTTP-only session cookie.
+- Optional account registration and login using bcrypt password hashes, passwords limited to 72 UTF-8 bytes to avoid bcrypt truncation, and an HTTP-only session cookie.
 - Profile editing, authenticated password changes, and password-confirmed account deletion, plus saved-scenario export and deletion controls.
 - MongoDB models for user-owned simulations, immutable comparison snapshots, and per-user learning progress and quiz attempts.
 - Public calculation endpoints for all six simulators and authenticated scenario CRUD, learning progress, and quiz-attempt endpoints.

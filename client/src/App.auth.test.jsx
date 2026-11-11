@@ -133,6 +133,18 @@ describe('account interface and session restoration', () => {
     expect(JSON.parse(registration.body)).toEqual({ name: account.name, confirmPassword: 'learning123', email: account.email, password: 'learning123' });
   });
 
+  it('rejects passwords beyond bcrypt’s UTF-8 byte limit before sending credentials', async () => {
+    const { calls } = installApi();
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in or create an account' }));
+    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: account.email } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: `a1${'a'.repeat(71)}` } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Password cannot exceed 72 UTF-8 bytes.')).toBeTruthy();
+    expect(calls.some((call) => call.url === '/api/auth/login')).toBe(false);
+  });
+
   it('merges guest lesson and reading progress into a newly created account', async () => {
     localStorage.setItem('fincoach-lessons', JSON.stringify(['personal-finance.money-basics']));
     localStorage.setItem('fincoach-reading-list', JSON.stringify([{ title: 'The Psychology of Money', status: 'Reading' }]));

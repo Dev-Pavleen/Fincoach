@@ -18,10 +18,10 @@ describe('learning and workspace navigation', () => {
   it('opens a selected course and its first learning module from Learn', async () => {
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Introduction to Personal Finance/ }));
+    fireEvent.click(await screen.findByRole('link', { name: /Introduction to Personal Finance/ }));
     expect(screen.getByRole('heading', { name: 'Introduction to Personal Finance' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /Understanding money/ }));
+    fireEvent.click(screen.getByRole('link', { name: /Understanding money/ }));
     expect(await screen.findByRole('heading', { name: 'Money as a tool' })).toBeTruthy();
   });
 
@@ -31,15 +31,15 @@ describe('learning and workspace navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
 
     for (const course of courses) {
-      fireEvent.click(await screen.findByRole('button', { name: new RegExp(course.title) }));
+      fireEvent.click(await screen.findByRole('link', { name: new RegExp(course.title) }));
       for (const module of course.modules) {
-        const moduleButton = screen.getAllByRole('button').find((button) => button.classList.contains('course-module-row') && button.querySelector('strong')?.textContent === module.title);
+        const moduleButton = screen.getAllByRole('link').find((link) => link.classList.contains('course-module-row') && link.querySelector('strong')?.textContent === module.title);
         expect(moduleButton).toBeTruthy();
         fireEvent.click(moduleButton);
         expect(await screen.findByRole('heading', { name: module.lesson.title })).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: /Course modules/ }));
       }
-      fireEvent.click(screen.getByRole('button', { name: /All courses/ }));
+      fireEvent.click(screen.getByRole('link', { name: /All courses/ }));
     }
   }, 20000);
 
@@ -50,15 +50,15 @@ describe('learning and workspace navigation', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Open modules' })[0]);
     expect(await screen.findByRole('heading', { name: 'Introduction to Personal Finance' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Understanding money/ }));
+    fireEvent.click(screen.getByRole('link', { name: /Understanding money/ }));
     expect(await screen.findByRole('heading', { name: 'Money as a tool' })).toBeTruthy();
   });
 
   it('saves a correct lesson check and restores progress after a reload', async () => {
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Introduction to Personal Finance/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Understanding money/ }));
+    fireEvent.click(await screen.findByRole('link', { name: /Introduction to Personal Finance/ }));
+    fireEvent.click(screen.getByRole('link', { name: /Understanding money/ }));
     fireEvent.click(screen.getByRole('button', { name: 'It makes the goal easier to plan and review' }));
     expect(await screen.findByText(/Correct\./)).toBeTruthy();
     await waitFor(() => expect(JSON.parse(localStorage.getItem('fincoach-lessons') || '[]')).toContain('personal-finance.money-basics'));
@@ -74,7 +74,7 @@ describe('learning and workspace navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
     await screen.findByRole('heading', { name: 'Learn the building blocks' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open Student workspace overview' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Open Student workspace overview' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Overview' }).className).toContain('nav-active'));
     expect(screen.getByRole('heading', { name: /Good choices start with a little curiosity/ })).toBeTruthy();
   });
@@ -93,16 +93,16 @@ describe('learning and workspace navigation', () => {
 
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
-    fireEvent.click(await screen.findByRole('button', { name: new RegExp(course.title) }));
+    fireEvent.click(await screen.findByRole('link', { name: new RegExp(course.title) }));
     await waitFor(() => expect(screen.getByTestId('route-path').textContent).toBe(courseUrl));
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(lesson.title) }));
+    fireEvent.click(screen.getByRole('link', { name: new RegExp(lesson.title) }));
     expect(await screen.findByRole('heading', { name: lesson.lesson.title })).toBeTruthy();
     await waitFor(() => expect(screen.getByTestId('route-path').textContent).toBe(lessonUrl));
 
     cleanup();
     renderApp([lessonUrl]);
     expect(await screen.findByRole('heading', { name: lesson.lesson.title })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Open Student workspace overview' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Open Student workspace overview' }));
     expect(await screen.findByRole('heading', { name: /Good choices start with a little curiosity/ })).toBeTruthy();
     await waitFor(() => expect(screen.getByTestId('route-path').textContent).toBe('/workspace'));
   });

@@ -58,6 +58,21 @@ test('registration validation, account login, sessions and owner-scoped scenario
   assert.equal(weakPassword.response.status, 400);
   assert.match(weakPassword.data.details.password[0], /number/i);
 
+  for (const [email, password] of [
+    ['long-ascii@example.test', `a1${'a'.repeat(71)}`],
+    ['long-unicode@example.test', `a1${'é'.repeat(36)}`],
+  ]) {
+    const oversizedPassword = await request('/auth/register', {
+      method: 'POST', body: { name: 'Student One', email, password, confirmPassword: password },
+    });
+    assert.equal(oversizedPassword.response.status, 400);
+    assert.match(oversizedPassword.data.details.password[0], /72 UTF-8 bytes/i);
+  }
+  const oversizedLogin = await request('/auth/login', {
+    method: 'POST', body: { email: 'one@example.test', password: `a1${'a'.repeat(71)}` },
+  });
+  assert.equal(oversizedLogin.response.status, 400);
+
   const registered = await request('/auth/register', {
     method: 'POST', body: { name: 'Student One', email: ' ONE@example.test ', password: 'learning123', confirmPassword: 'learning123' },
   });

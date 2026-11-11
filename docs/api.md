@@ -42,11 +42,11 @@ This is a valid `investment` request; other simulator types have their own input
 
 ### `POST /auth/register`
 
-Public. Required JSON fields: `name` (1–80 characters), `email` (valid email, normalized to lowercase), `password` (8–128 characters, at least one letter and one number), and `confirmPassword` (must match). On success, returns `201 { "user": { "id", "name", "email", "createdAt" } }` and sets the session cookie. Duplicate email returns `409`; invalid fields return `400` with a `details` object keyed by field.
+Public. Required JSON fields: `name` (1–80 characters), `email` (valid email, normalized to lowercase), `password` (8–128 characters, at least one letter and one number, and at most 72 UTF-8 bytes), and `confirmPassword` (must match). The byte cap prevents bcrypt from silently truncating longer passwords. On success, returns `201 { "user": { "id", "name", "email", "createdAt" } }` and sets the session cookie. Duplicate email returns `409`; invalid fields return `400` with a `details` object keyed by field.
 
 ### `POST /auth/login`
 
-Public. Body: `{ "email": "student@example.com", "password": "..." }`. On success returns `{ "user": { "id", "name", "email", "createdAt" } }` and sets the session cookie. Invalid credentials return `401`; malformed credentials return `400`.
+Public. Body: `{ "email": "student@example.com", "password": "..." }`. Passwords longer than 72 UTF-8 bytes are rejected to match bcrypt's input limit. On success returns `{ "user": { "id", "name", "email", "createdAt" } }` and sets the session cookie. Invalid credentials return `401`; malformed credentials return `400`.
 
 ### `POST /auth/logout`
 
@@ -62,7 +62,7 @@ Protected. Body: `{ "name": "Student", "email": "student@example.com" }`. Return
 
 ### `PATCH /auth/password`
 
-Protected. Body: `{ "currentPassword": "...", "newPassword": "..." }`. The new password uses the registration password policy. Returns `{ "message": "Password updated." }`; bad current password returns `401`.
+Protected. Body: `{ "currentPassword": "...", "newPassword": "..." }`. Both passwords must fit within 72 UTF-8 bytes; the new password also uses the registration letter/number policy. Returns `{ "message": "Password updated." }`; bad current password returns `401`.
 
 ### `DELETE /auth/account`
 
