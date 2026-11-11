@@ -49,6 +49,24 @@ describe('account interface and session restoration', () => {
     expect(localStorage.getItem('fincoach-session-active')).toBeNull();
   });
 
+  it('traps keyboard focus in the account dialog and closes it with Escape', () => {
+    render(<App />);
+    const trigger = screen.getByRole('button', { name: 'Sign in or create an account' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const closeButton = screen.getByRole('button', { name: 'Close account dialog' });
+    const modeButton = screen.getByRole('button', { name: 'Create an account' });
+    expect(document.activeElement).toBe(closeButton);
+    modeButton.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(closeButton);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it('submits login credentials and exposes the password visibility toggle', async () => {
     const { calls } = installApi();
     render(<App />);

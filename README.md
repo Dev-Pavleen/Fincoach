@@ -26,7 +26,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 
 ### Latest verification (11 November 2026)
 
-- `npm test`: passed — 30 server/API, calculation, and configuration tests plus 15 client interaction tests (45 total), including navigation through all 70 lessons, the Student workspace, guest progress migration, and expired-session messaging.
+- `npm test`: passed — 30 server/API, calculation, and configuration tests plus 16 client interaction tests (46 total), including navigation through all 70 lessons, the Student workspace, guest progress migration, expired-session messaging, and keyboard operation of the account dialog.
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
 - Local startup check: the combined dev command served the frontend and proxied `/api/health` successfully; stopping it released its API/frontend listeners.
 - Netlify adapter test: the automated test invokes the function handler and confirms the simulator response. Netlify CLI `build` also completed locally, including bundling `api.mjs`; a hosted Netlify deployment has not been verified here.

@@ -129,6 +129,27 @@ function App() {
   useEffect(() => { localStorage.setItem('fincoach-theme', JSON.stringify(theme)); document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => { if (!toast) return undefined; const timer = setTimeout(() => setToast(''), 2600); return () => clearTimeout(timer); }, [toast]);
   useEffect(() => {
+    if (!accountOpen) return undefined;
+    const dialog = document.querySelector('.account-dialog');
+    const previousFocus = document.activeElement;
+    const focusable = () => [...(dialog?.querySelectorAll('button:not(:disabled), input:not(:disabled), [href], [tabindex]:not([tabindex="-1"])') ?? [])].filter((element) => element.getAttribute('aria-hidden') !== 'true');
+    focusable()[0]?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); setAccountOpen(false); setAuthError(''); return; }
+      if (event.key !== 'Tab') return;
+      const elements = focusable();
+      if (!elements.length) { event.preventDefault(); return; }
+      const first = elements[0]; const last = elements.at(-1);
+      if (event.shiftKey && (document.activeElement === first || !dialog?.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !dialog?.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [accountOpen, authMode]);
+  useEffect(() => {
     let mounted = true;
     const restoreAccount = async () => {
       try {
