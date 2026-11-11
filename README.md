@@ -72,6 +72,8 @@ There are no seeded demo credentials. For a local demonstration, start the app a
 
 ## API
 
+See [API reference](docs/api.md) for request bodies, authentication, response shapes, status codes, and examples.
+
 | Method and path | Access | Purpose |
 |---|---|---|
 | `GET /api/health` | Public | API health check |
