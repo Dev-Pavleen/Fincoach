@@ -13,7 +13,7 @@ npm run dev
 
 On Windows, double-click [`Start FinCoach.bat`](./Start%20FinCoach.bat) to start both the website and account API. Alternatively, in the VS Code terminal at the project root, use `npm.cmd install` once, then `npm.cmd run dev` (this avoids PowerShell's `npm.ps1` execution-policy error). Open the exact Vite `Local` address printed in the terminal; if 5173 is occupied Vite may select another port. Keep the terminal or batch window open while using FinCoach. Closing it stops both processes; after changing server code, restart the command to load those changes.
 
-The Express API runs at `http://localhost:4000`; Vite forwards `/api` requests to it. When MongoDB is not configured locally, accounts and saved scenarios use a JSON file at `server/data/fincoach-local.json`. This is for local development only; production startup requires `MONGODB_URI`, and production API requests never fall back to local JSON. For local MongoDB, copy `server/.env.example` to `server/.env`, set `MONGODB_URI` and a random `JWT_SECRET` of at least 32 characters, then restart the API. Keep `.env` files private.
+The Express API runs at `http://localhost:4000`; Vite forwards `/api` requests to it. The API loads `server/.env` explicitly, including when started from the repository root. When MongoDB is not configured locally, accounts and saved scenarios use a JSON file at `server/data/fincoach-local.json`. This is for local development only; production startup requires `MONGODB_URI`, and production API requests never fall back to local JSON. For local MongoDB, copy `server/.env.example` to `server/.env`, set `MONGODB_URI` and a random `JWT_SECRET` of at least 32 characters, then restart the API. Keep `.env` files private.
 
 ```sh
 npm test
@@ -26,8 +26,9 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 
 ### Latest verification (11 November 2026)
 
-- `npm test`: passed — 29 server/API and calculation tests plus 14 client interaction tests (43 total), including navigation through all 70 lessons, the Student workspace, and guest progress migration.
+- `npm test`: passed — 30 server/API, calculation, and configuration tests plus 14 client interaction tests (44 total), including navigation through all 70 lessons, the Student workspace, and guest progress migration.
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
+- Local startup check: the combined dev command served the frontend and proxied `/api/health` successfully; stopping it released its API/frontend listeners.
 - Netlify function smoke check: its simulator endpoint returned the expected investment result, and an esbuild CommonJS bundle check resolved the function dependencies successfully.
 - Account persistence was verified against the local development JSON store. A live MongoDB Atlas connection and the deployed Netlify/Vercel environment were not available for verification; hosted accounts require valid `MONGODB_URI` and `JWT_SECRET` values, as described below.
 
