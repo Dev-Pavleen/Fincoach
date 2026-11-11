@@ -29,7 +29,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 - `npm test`: passed — 30 server/API, calculation, and configuration tests plus 14 client interaction tests (44 total), including navigation through all 70 lessons, the Student workspace, and guest progress migration.
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
 - Local startup check: the combined dev command served the frontend and proxied `/api/health` successfully; stopping it released its API/frontend listeners.
-- Netlify function smoke check: its simulator endpoint returned the expected investment result, and an esbuild CommonJS bundle check resolved the function dependencies successfully.
+- Netlify adapter test: the automated test invokes the function handler and confirms the simulator response. A current Netlify-hosted bundle/deployment has not been verified here.
 - Account persistence was verified against the local development JSON store. A live MongoDB Atlas connection and the deployed Netlify/Vercel environment were not available for verification; hosted accounts require valid `MONGODB_URI` and `JWT_SECRET` values, as described below.
 
 ## What is included
