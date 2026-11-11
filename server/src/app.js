@@ -230,7 +230,12 @@ export function createApp() {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     next();
   });
-  app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5176', credentials: true }));
+  const configuredClientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5176';
+  app.use(cors({ origin(origin, callback) {
+    const isLocalPreview = !isHostedFunction() && /^https?:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin || '');
+    if (!origin || origin === configuredClientOrigin || isLocalPreview) return callback(null, origin || configuredClientOrigin);
+    return callback(null, false);
+  }, credentials: true }));
   app.use(express.json({ limit: '32kb' }));
   app.use(cookieParser());
   app.use('/api/auth', createAuthRateLimiter());

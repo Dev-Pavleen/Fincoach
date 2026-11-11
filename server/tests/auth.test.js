@@ -264,6 +264,12 @@ test('default local CORS origin matches the documented Vite preview port', async
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('access-control-allow-origin'), 'http://localhost:5176');
   assert.equal(response.headers.get('access-control-allow-credentials'), 'true');
+
+  for (const origin of ['http://localhost:5222', 'http://127.0.0.1:5223']) {
+    const dynamicPortResponse = await fetch(`${apiUrl}/health`, { headers: { Origin: origin } });
+    assert.equal(dynamicPortResponse.headers.get('access-control-allow-origin'), origin);
+    assert.equal(dynamicPortResponse.headers.get('access-control-allow-credentials'), 'true');
+  }
 });
 
 test('all public simulators calculate in hosted mode without requiring MongoDB', async () => {
