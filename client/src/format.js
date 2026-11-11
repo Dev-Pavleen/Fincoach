@@ -1,0 +1,1 @@
+export const formatINR = (n, decimals = 0) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: decimals, minimumFractionDigits: decimals }).format(Number(n) || 0);

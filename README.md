@@ -26,11 +26,11 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 
 ### Latest verification (11 November 2026)
 
-- `npm test`: passed — 33 server/API, calculation, Netlify-adapter, and configuration tests plus 20 client interaction tests (53 total), including both card payoff paths through the Netlify function, navigation through all 70 lessons, direct course/lesson URLs, Student workspace navigation, guest progress migration, the editable card minimum-payment comparison, matching local CORS defaults, expired-session messaging, keyboard operation of the account dialog, and logout failure handling.
+- `npm test`: passed — 33 server/API, calculation, Netlify-adapter, and configuration tests plus 21 client interaction tests (54 total), including both card payoff paths through the Netlify function, navigation through all 70 lessons, direct course/lesson and Student workspace URLs, guest progress migration, the editable card minimum-payment comparison, matching local CORS defaults, expired-session messaging, keyboard operation of the account dialog, and logout failure handling.
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
 - Local startup check: the frontend returned HTTP 200 and Vite's `/api/health` proxy returned `{"status":"ok","storage":"local"}` on port 5176.
 - Netlify adapter test: the automated test invokes the function handler and confirms simulator responses. Netlify CLI `build` also completed locally, including bundling `api.mjs`. The public Netlify health URL currently returns HTTP 401 from the site's access gate, so the deployed function and its MongoDB configuration cannot yet be verified.
-- GitHub Actions: the `645d584` `main` commit passed the full test and production-build workflow.
+- GitHub Actions: commit `b974a2b` on `main` passed the full test and production-build workflow (verified 11 November 2026).
 - `pnpm audit --prod`: passed with no known production dependency vulnerabilities after upgrading Mongoose and pinning the patched `body-parser` release.
 - Fresh CI-style pnpm install: passed with frozen lockfile and the approved esbuild postinstall script.
 - Account persistence was verified against the local development JSON store. A live MongoDB Atlas connection and the deployed Netlify/Vercel environment were not available for verification; hosted accounts require valid `MONGODB_URI` and `JWT_SECRET` values, as described below.
@@ -45,7 +45,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 - MongoDB models for user-owned simulations, immutable comparison snapshots, and per-user learning progress and quiz attempts.
 - Public calculation endpoints for all six simulators and authenticated scenario CRUD, learning progress, and quiz-attempt endpoints.
 - Search, simulator filters, and date/name sorting for scenario history.
-- Eight searchable learning courses covering 70 topic-specific modules, with individual lesson checks, previous/next navigation, and one four-question course-end assessment per course. The 32 assessment questions include multiple-choice, true/false, scenario, and calculation formats with explanations; authenticated scores are recomputed by the API. Supplementary lesson material and checks live in `shared/supplementalLessons.js` instead of repeating a generic course paragraph. The book and official-resource library is searchable, and reading status and learning progress are tracked.
+- Eight searchable learning courses covering 70 topic-specific modules, with individual lesson checks, previous/next navigation, and one four-question course-end assessment per course. The learning center UI lives in `client/src/features/learning/LearningCenter.jsx`, separate from the application shell. The 32 assessment questions include multiple-choice, true/false, scenario, and calculation formats with explanations; authenticated scores are recomputed by the API. Supplementary lesson material and checks live in `shared/supplementalLessons.js` instead of repeating a generic course paragraph. The book and official-resource library is searchable, and reading status and learning progress are tracked.
 - Light, dark, and system display themes, a getting-started checklist, and resettable simulator inputs.
 - React Router URLs for workspace sections, individual simulators, courses, and lessons. Lesson links can be refreshed or shared, and browser Back/Forward follows in-app navigation.
 
@@ -64,7 +64,7 @@ flowchart LR
   DB --> LEARN[Learning progress and quiz attempts]
 ```
 
-`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` assembles each course from its core lessons and the topic-specific `shared/supplementalLessons.js` content. Lesson checks and `shared/courseAssessments.js` supply assessment keys to the API, so signed-in scores are recomputed server-side. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
+`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` assembles each course from its core lessons and the topic-specific `shared/supplementalLessons.js` content. `client/src/features/learning/LearningCenter.jsx` owns course browsing, lessons, checks, and assessment screens; `App.jsx` supplies persistence and navigation actions. Lesson checks and `shared/courseAssessments.js` supply assessment keys to the API, so signed-in scores are recomputed server-side. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
 
 ### Data model
 
