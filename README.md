@@ -30,7 +30,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 - `npm run build`: passed — Vite production bundle generated and the Vercel static assets prepared.
 - Local startup check: the frontend returned HTTP 200 and Vite's `/api/health` proxy returned `{"status":"ok","storage":"local"}` on port 5176.
 - Netlify adapter test: the automated test invokes the function handler and confirms simulator responses. Netlify CLI `build` also completed locally, including bundling `api.mjs`. The public Netlify health URL currently returns HTTP 401 from the site's access gate, so the deployed function and its MongoDB configuration cannot yet be verified.
-- GitHub Actions: commit `b974a2b` on `main` passed the full test and production-build workflow (verified 11 November 2026).
+- GitHub Actions: commit `89ca802` on `main` passed the full test and production-build workflow (verified 11 November 2026).
 - `pnpm audit --prod`: passed with no known production dependency vulnerabilities after upgrading Mongoose and pinning the patched `body-parser` release.
 - Fresh CI-style pnpm install: passed with frozen lockfile and the approved esbuild postinstall script.
 - Account persistence was verified against the local development JSON store. A live MongoDB Atlas connection and the deployed Netlify/Vercel environment were not available for verification; hosted accounts require valid `MONGODB_URI` and `JWT_SECRET` values, as described below.
@@ -64,7 +64,7 @@ flowchart LR
   DB --> LEARN[Learning progress and quiz attempts]
 ```
 
-`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` assembles each course from its core lessons and the topic-specific `shared/supplementalLessons.js` content. `client/src/features/learning/LearningCenter.jsx` owns course browsing, lessons, checks, and assessment screens; `App.jsx` supplies persistence and navigation actions. Lesson checks and `shared/courseAssessments.js` supply assessment keys to the API, so signed-in scores are recomputed server-side. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
+`shared/calculations.js` is the source of truth for calculations in both client and server. `shared/learningContent.js` assembles each course from its core lessons and the topic-specific `shared/supplementalLessons.js` content. `client/src/features/learning/LearningCenter.jsx` owns course browsing, lessons, checks, and assessment screens; `client/src/features/simulators/SimulatorPage.jsx` owns simulator inputs, charts, result tables, and breakdowns. `client/src/simulatorCatalog.js` shares simulator metadata and route builders, while `client/src/format.js` provides the shared INR formatter. `App.jsx` supplies persistence and navigation actions. Lesson checks and `shared/courseAssessments.js` supply assessment keys to the API, so signed-in scores are recomputed server-side. The server recomputes submitted inputs before scenario persistence; saved results include calculation assumptions and schema version so a scenario can be explained and reproduced.
 
 ### Data model
 
