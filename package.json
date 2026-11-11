@@ -7,6 +7,7 @@
   "workspaces": ["client", "server"],
   "scripts": {
     "dev": "concurrently -k -n api,web -c blue,green \"node server/src/index.js\" \"npm --workspace client run dev\"",
+    "preview:local": "node scripts/preview-local.mjs",
     "dev:client": "npm --workspace client run dev",
     "dev:server": "node server/src/index.js",
     "build": "npm --workspace client run build && node scripts/prepare-vercel.mjs",

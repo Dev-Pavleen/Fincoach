@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-On Windows, double-click [`Start FinCoach.bat`](./Start%20FinCoach.bat) to start both the website and account API. Alternatively, in the VS Code terminal at the project root, use `npm.cmd install` once, then `npm.cmd run dev` (this avoids PowerShell's `npm.ps1` execution-policy error). Open the exact `Local` URL printed by Vite, usually `http://localhost:5176/`. If that port is occupied, Vite automatically selects the next available port; the local API accepts localhost and loopback preview origins so account requests still work. Keep the terminal or batch window open while using FinCoach. Closing it stops both processes; after changing server code, restart the command to load those changes.
+On Windows, double-click [`Start FinCoach.bat`](./Start%20FinCoach.bat) to start the website and account API together. It checks for an existing local API, selects a free website port, waits for both services, and opens the matching URL in your default desktop browser. Alternatively, in the VS Code terminal at the project root, use `npm.cmd install` once, then `npm.cmd run preview:local` (this avoids PowerShell's `npm.ps1` execution-policy error and opens the correct URL automatically). Keep that terminal or batch window open; press Ctrl+C to stop the services. Closing it stops the preview. After changing server code, restart the launcher to load those changes.
 
 The Express API runs at `http://localhost:4000`; Vite forwards `/api` requests to it. The API loads `server/.env` explicitly, including when started from the repository root. When MongoDB is not configured locally, accounts and saved scenarios use a JSON file at `server/data/fincoach-local.json`. This is for local development only; production startup requires `MONGODB_URI`, and production API requests never fall back to local JSON. For local MongoDB, copy `server/.env.example` to `server/.env`, set `MONGODB_URI` and a random `JWT_SECRET` of at least 32 characters, then restart the API. Keep `.env` files private.
 
@@ -126,7 +126,7 @@ The Learn page links to official education material from RBI, SEBI, NPCI, and th
 
 ## Academic project package
 
-The repository contains the source, setup and API documentation, architecture diagram, formula assumptions, and automated test instructions. Add approved interface screenshots and sample calculation evidence to the final submission. The department report template and project-requirements documents were not present in this checkout, so use the current approved department format and confirm certificate wording, reference rules, training acceptance, and deadline with faculty before submitting. Do not treat this README as a substitute for those academic approvals.
+The repository contains the source, setup and API documentation, architecture diagram, formula assumptions, automated test instructions, and reproducible sample outputs for all six simulators in [`docs/calculation-evidence.md`](./docs/calculation-evidence.md). Add approved interface screenshots to the final submission. The department report template and project-requirements documents were not present in this checkout, so use the current approved department format and confirm certificate wording, reference rules, training acceptance, and deadline with faculty before submitting. Do not treat this README as a substitute for those academic approvals.
 
 ## Deployment
 

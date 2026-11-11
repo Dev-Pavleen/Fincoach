@@ -22,11 +22,11 @@ if not exist "node_modules\" (
   exit /b 1
 )
 
-echo Starting both the FinCoach website and account API.
-echo Keep this window open while using the website.
-echo Use the Local URL printed below by Vite.
+echo Starting the FinCoach website and account API.
+echo Your default browser will open when both are ready.
+echo Keep this window open while using FinCoach.
 echo.
-call npm.cmd run dev
+call npm.cmd run preview:local
 
 echo.
 echo FinCoach has stopped. Press any key to close this window.
