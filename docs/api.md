@@ -109,6 +109,8 @@ All persistent progress routes require a session. Guests can still use lessons a
 | `POST /learning/assessments/:assessmentId/attempts` | `{ "attemptId": "<uuid>", "answers": [0, 1, 2, 0] }` | `201 { "attempt": ..., "duplicate": false }`; the server grades all answers |
 | `PUT /learning/reading-list` | `{ "items": [{ "title": "...", "status": "Want to Read" }] }` | `{ "readingList": [...] }` |
 
+`PUT /learning/progress` accepts only lesson IDs present in the current shared course catalog. Unknown lesson IDs return `400` and are not saved.
+
 Lesson and assessment attempt IDs are idempotency keys. Reposting a previously stored ID returns the existing attempt rather than adding another one. The server accepts only known lesson/assessment IDs and book titles. Attempt history is capped at the most recent 500 entries per account.
 
 ## Error format
