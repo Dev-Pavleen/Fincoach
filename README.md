@@ -31,6 +31,7 @@ GitHub Actions runs the frozen pnpm workspace install, the full test suite, and 
 - Local startup check: the combined dev command served the frontend and proxied `/api/health` successfully; stopping it released its API/frontend listeners.
 - Netlify adapter test: the automated test invokes the function handler and confirms the simulator response. Netlify CLI `build` also completed locally, including bundling `api.mjs`; a hosted Netlify deployment has not been verified here.
 - `pnpm audit --prod`: passed with no known production dependency vulnerabilities after upgrading Mongoose and pinning the patched `body-parser` release.
+- Fresh CI-style pnpm install: passed with frozen lockfile and the approved esbuild postinstall script.
 - Account persistence was verified against the local development JSON store. A live MongoDB Atlas connection and the deployed Netlify/Vercel environment were not available for verification; hosted accounts require valid `MONGODB_URI` and `JWT_SECRET` values, as described below.
 
 ## What is included
