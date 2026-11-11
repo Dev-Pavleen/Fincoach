@@ -51,6 +51,7 @@ const safeReadArray = (key) => {
   } catch { return []; }
 };
 const safeReadKey = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; } };
+const setSessionMarker = (active) => { try { if (active) localStorage.setItem('fincoach-session-active', JSON.stringify(true)); else localStorage.removeItem('fincoach-session-active'); } catch { /* Authentication remains server-owned if browser storage is unavailable. */ } };
 const safeRead = () => safeReadArray('fincoach-scenarios').filter((item) =>
   isRecord(item) && typeof item.id === 'string' && isSnapshot(item) && isRecord(item.result ?? item.results));
 const safeReadComparisons = () => safeReadArray('fincoach-comparisons')
@@ -132,9 +133,16 @@ function App() {
     const restoreAccount = async () => {
       try {
         const accountResponse = await fetch('/api/auth/me', { credentials: 'include' });
-        if (!accountResponse.ok) return;
+        if (!accountResponse.ok) {
+          if (accountResponse.status === 401 && safeReadKey('fincoach-session-active', false)) {
+            setSessionMarker(false);
+            setToast('Your session has expired. Sign in again to sync your account.');
+          }
+          return;
+        }
         const account = await accountResponse.json();
         if (!account?.user || !mounted) return;
+        setSessionMarker(true);
         setUser(account.user);
         const [simResponse, compareResponse, progressResponse] = await Promise.all([
           fetch('/api/simulations', { credentials: 'include' }),
@@ -259,6 +267,7 @@ function App() {
         throw new Error(response.status >= 500 ? 'Account sign-in is temporarily unavailable. Please try again later.' : body.error || 'Please check your details and try again.');
       }
       if (!body.user) throw new Error('We couldn’t complete sign-in. Please try again.');
+      setSessionMarker(true);
       if (authMode === 'register' && quizAttempts.length) {
         const pending = safeReadAttempts('fincoach-pending-quiz-attempts');
         localStorage.setItem('fincoach-pending-quiz-attempts', JSON.stringify([...new Map([...pending, ...quizAttempts].map((item) => [item.attemptId, item])).values()]));
@@ -312,8 +321,8 @@ function App() {
   };
   const saveProfile = async (profile) => { try { const response = await fetch('/api/auth/profile', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Could not update your profile.'); setUser(body.user); setToast('Profile updated'); return true; } catch (caught) { setToast(caught.message); return false; } };
   const changePassword = async (passwords) => { try { const response = await fetch('/api/auth/password', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(passwords) }); const body = await response.json(); if (!response.ok) throw new Error(body.details?.newPassword?.[0] || body.error || 'Could not update your password.'); setToast('Password updated'); return true; } catch (caught) { setToast(caught.message); return false; } };
-  const deleteAccount = async (currentPassword) => { try { const response = await fetch('/api/auth/account', { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword }) }); if (!response.ok) { const body = await response.json(); throw new Error(body.error || 'Could not delete this account.'); } setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setToast('Account and account scenarios deleted'); return true; } catch (caught) { setToast(caught.message); return false; } };
-  const signOut = async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {} setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setAccountOpen(false); setToast('Signed out'); };
+  const deleteAccount = async (currentPassword) => { try { const response = await fetch('/api/auth/account', { method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword }) }); if (!response.ok) { const body = await response.json(); throw new Error(body.error || 'Could not delete this account.'); } setSessionMarker(false); setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setToast('Account and account scenarios deleted'); return true; } catch (caught) { setToast(caught.message); return false; } };
+  const signOut = async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {} setSessionMarker(false); setUser(null); setHistory(safeRead()); setComparisons(safeReadComparisons()); setCompletedLessons(safeReadLessons()); setQuizAttempts(safeReadAttempts()); setReadingList(safeReadReadingList()); setAccountOpen(false); setToast('Signed out'); };
   const clearHistory = async () => {
     if (!window.confirm(`Delete all ${history.length} saved ${history.length === 1 ? 'scenario' : 'scenarios'}? This cannot be undone.`)) return;
     if (user) {

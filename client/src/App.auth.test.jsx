@@ -40,6 +40,15 @@ describe('account interface and session restoration', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', { credentials: 'include' });
   });
 
+  it('explains an expired session and clears its remembered sign-in marker', async () => {
+    localStorage.setItem('fincoach-session-active', JSON.stringify(true));
+    installApi();
+    render(<App />);
+
+    expect(await screen.findByText('Your session has expired. Sign in again to sync your account.')).toBeTruthy();
+    expect(localStorage.getItem('fincoach-session-active')).toBeNull();
+  });
+
   it('submits login credentials and exposes the password visibility toggle', async () => {
     const { calls } = installApi();
     render(<App />);
@@ -57,6 +66,7 @@ describe('account interface and session restoration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(await screen.findByRole('button', { name: `Account: ${account.name}` })).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem('fincoach-session-active'))).toBe(true);
     const login = calls.find((call) => call.url === '/api/auth/login');
     expect(login).toBeTruthy();
     expect(JSON.parse(login.body)).toEqual({ email: account.email, password: 'learning123' });
