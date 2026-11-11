@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.25.0",
   "workspaces": ["client", "server"],
   "scripts": {
     "dev": "concurrently -k -n api,web -c blue,green \"node server/src/index.js\" \"npm --workspace client run dev\"",
@@ -13,7 +14,15 @@
     "test": "npm --workspace server test && npm --workspace client test"
   },
   "dependencies": {
-    "serverless-http": "^4.0.0"
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.18.0",
+    "serverless-http": "^4.0.0",
+    "zod": "^4.1.5"
   },
   "devDependencies": { "concurrently": "^9.2.1" },
   "engines": { "node": ">=20.19" }
