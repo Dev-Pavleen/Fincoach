@@ -81,6 +81,21 @@ test('card payoff compares the base payment with an extra-payment plan', () => {
   assert.ok(faster.interestSaved > 0);
 });
 
+test('card payoff compares a disclosed minimum-payment estimate with a higher fixed payment', () => {
+  const result = calculateCard({ balance: 12000, apr: 24, payment: 2000, minimumPaymentRate: 5, minimumPaymentFloor: 100 });
+  assert.equal(result.minimumSchedule[0].interest, 240);
+  assert.equal(result.minimumSchedule[0].payment, 612);
+  assert.ok(result.minimumMonths > result.months);
+  assert.ok(result.minimumInterest > result.totalInterest);
+  assert.ok(result.minimumInterestSaved > 0);
+  assert.equal(result.comparisonChart[0].minimumBalance, result.minimumSchedule[0].balance);
+  assert.equal(result.comparisonChart[0].higherPaymentBalance, result.schedule[0].balance);
+
+  const floorCase = calculateCard({ balance: 500, apr: 12, payment: 500, minimumPaymentRate: 5, minimumPaymentFloor: 100 });
+  assert.equal(floorCase.minimumSchedule[0].payment, 100);
+  assert.throws(() => calculateCard({ balance: 10000, apr: 12, payment: 1000, minimumPaymentRate: 0 }), (error) => error.field === 'minimumPaymentRate');
+});
+
 test('savings goal estimates required monthly contributions and progress', () => {
   const targetDate = new Date();
   targetDate.setFullYear(targetDate.getFullYear() + 1);

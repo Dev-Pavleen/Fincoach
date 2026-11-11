@@ -138,3 +138,9 @@ html[data-theme="dark"] .replay-version-marker{background:#33415c;color:#8bbcff}
 /* Keep any non-INR prefix aligned with the blue palette. */
 .input-prefix{color:#5c677d}
 html[data-theme="dark"] .input-prefix{color:#b8c6d9}
+
+.card-strategy-comparison{background:#fff;border:1px solid #dce2eb;border-radius:11px;padding:16px;margin:12px 0;color:#001845}
+.card-strategy-comparison h3{font-size:14px;margin:0 0 6px}
+.card-strategy-comparison>p{font-size:11px;color:#5c677d;line-height:1.55;margin:0 0 12px}
+html[data-theme="dark"] .card-strategy-comparison{background:#001845;border-color:#33415c;color:#f2f5fa}
+html[data-theme="dark"] .card-strategy-comparison>p{color:#b5c2d4}

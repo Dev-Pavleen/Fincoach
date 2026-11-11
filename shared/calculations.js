@@ -133,8 +133,10 @@ export function calculateCard(input) {
   const payment = positive(input.payment, 'payment', 'Monthly payment');
   const additionalMonthlyPayment = positive(input.additionalMonthlyPayment ?? 0, 'additionalMonthlyPayment', 'Additional monthly payment', true);
   const newSpending = positive(input.newSpending ?? 0, 'newSpending', 'New monthly spending', true);
+  const minimumPaymentRate = bounded(input.minimumPaymentRate ?? 5, 'minimumPaymentRate', 'Illustrative minimum-payment rate', 1, 100);
+  const minimumPaymentFloor = positive(input.minimumPaymentFloor ?? 100, 'minimumPaymentFloor', 'Illustrative minimum-payment floor', true);
   const monthlyRate = apr / 1200;
-  const simulate = (monthlyPayment) => {
+  const simulate = (paymentForDue) => {
     const schedule = [];
     let remaining = balance;
     let totalInterest = 0;
@@ -143,7 +145,7 @@ export function calculateCard(input) {
       const opening = remaining + newSpending;
       const interest = opening * monthlyRate;
       const due = opening + interest;
-      const paid = Math.min(monthlyPayment, due);
+      const paid = Math.min(paymentForDue(due), due);
       remaining = Math.max(0, due - paid);
       totalInterest += interest;
       totalPaid += paid;
@@ -152,9 +154,10 @@ export function calculateCard(input) {
     }
     return { schedule, remaining, totalInterest, totalPaid, months: remaining <= 0.005 ? schedule.length : null };
   };
-  const baseline = simulate(payment);
+  const minimum = simulate((due) => Math.max(minimumPaymentFloor, due * minimumPaymentRate / 100));
+  const baseline = simulate(() => payment);
   const acceleratedPayment = payment + additionalMonthlyPayment;
-  const accelerated = simulate(acceleratedPayment);
+  const accelerated = simulate(() => acceleratedPayment);
   if (accelerated.months === null) {
     if (acceleratedPayment <= balance * monthlyRate + newSpending * (1 + monthlyRate)) fail('payment', 'Monthly payments must exceed new spending and accrued interest to reduce the balance.');
     fail('payment', 'This payment does not clear the balance within 600 months. Increase the payment.');
@@ -164,13 +167,21 @@ export function calculateCard(input) {
     fail('payment', 'This payment does not clear the balance within 600 months. Increase the payment.');
   }
   const fullPaymentInterest = balance * monthlyRate;
+  const comparisonChart = Array.from({ length: Math.max(minimum.schedule.length, accelerated.schedule.length) }, (_, index) => ({
+    period: `Month ${index + 1}`,
+    minimumBalance: minimum.schedule[index]?.balance ?? 0,
+    higherPaymentBalance: accelerated.schedule[index]?.balance ?? 0,
+  }));
   return {
     balance, apr, monthlyPayment: acceleratedPayment, baseMonthlyPayment: payment, additionalMonthlyPayment, newSpending,
     months: accelerated.months, totalInterest: accelerated.totalInterest, totalPaid: accelerated.totalPaid,
     baselineMonths: baseline.months, baselineInterest: baseline.totalInterest,
     interestSaved: baseline.months === null ? null : Math.max(0, baseline.totalInterest - accelerated.totalInterest),
-    fullPaymentInterest, schedule: accelerated.schedule,
-    formula: 'Each month, new spending is added to the opening balance, APR ÷ 12 interest is applied, then the fixed payment is subtracted. Issuer methods vary.',
+    minimumPaymentRate, minimumPaymentFloor, minimumMonths: minimum.months, minimumInterest: minimum.totalInterest,
+    minimumTotalPaid: minimum.totalPaid, minimumSchedule: minimum.schedule,
+    minimumInterestSaved: minimum.months === null ? null : Math.max(0, minimum.totalInterest - accelerated.totalInterest),
+    fullPaymentInterest, schedule: accelerated.schedule, comparisonChart,
+    formula: 'Each month, new spending is added to the opening balance, then APR ÷ 12 interest is applied. The illustrative minimum is the greater of the selected percentage of the amount due or the selected floor; the comparison payment is fixed. Issuer methods vary.',
   };
 }
 

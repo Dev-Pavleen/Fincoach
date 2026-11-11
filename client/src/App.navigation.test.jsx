@@ -6,6 +6,7 @@ import { courses } from './learningContent.js';
 describe('learning and workspace navigation', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}) }));
   });
 
@@ -76,6 +77,19 @@ describe('learning and workspace navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Student workspace overview' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Overview' }).className).toContain('nav-active'));
     expect(screen.getByRole('heading', { name: /Good choices start with a little curiosity/ })).toBeTruthy();
+  });
+
+  it('updates the credit-card minimum-payment comparison when its assumptions change', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Simulators' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Credit card' }));
+
+    const rate = screen.getByRole('spinbutton', { name: 'Illustrative minimum rate' });
+    expect(screen.getByText('Repayment strategy comparison')).toBeTruthy();
+    expect(screen.getAllByText(/5% of amount due or ₹100 floor/)).toHaveLength(2);
+    fireEvent.change(rate, { target: { value: '10' } });
+    expect(screen.getAllByText(/10% of amount due or ₹100 floor/)).toHaveLength(2);
+    expect(screen.getByText('Compare repayment paths')).toBeTruthy();
   });
 
   it('recovers from malformed browser-saved learning data without breaking navigation', async () => {
